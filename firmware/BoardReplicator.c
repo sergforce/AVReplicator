@@ -17,7 +17,7 @@ const char st_hello[] PROGMEM = "Hellow, World!";
 int main(void)
 {
 	// LED INIT
-	LED_DDR |= (1 << LED_1) | (1 << LED_2) | (1 << LED_3) | (1 << LED_4);
+	LED_DDR = (1 << LED_1) | (1 << LED_2) | (1 << LED_3);
 	LED_PORT = 0;
 	LED_PORT |= (1 << LED_1);	
 	
@@ -26,11 +26,11 @@ int main(void)
 	sei();
 
 	LCDClear();
-	
-	LCDPuts_P(st_hello);
+	LCDPuts_P(st_hello);	
 	
 	for (;;)
 	{
+	
 		//USB_USBTask();
 		LED_PORT |= (1 << LED_3);
 		_delay_ms(100);
@@ -58,11 +58,11 @@ void SetupHardware(void)
 	clock_prescale_set(clock_div_1);
 
 	/* Hardware Initialization */
-//	USB_Init();
+	USB_Init();
 
-//	LCDInit();
+	LCDInit();
 	
-
+	XMCRA = 0;
 }
 
 /** Event handler for the library USB Configuration Changed event. */

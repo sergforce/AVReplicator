@@ -19,13 +19,13 @@ void lcd_write_byte(uint8_t ch)
 {
     // Note RS must be select outside
     LCD_CTRL_PORT &= ~(1 << LCD_CTRL_RD);
-_delay_us(1);
+_delay_us(10);
 	LCD_CTRL_PORT |= (1 << LCD_CTRL_EN);
-_delay_us(1);
+_delay_us(10);
     LCD_DATA_PORT = ch;
-_delay_us(1);
+_delay_us(10);
     LCD_CTRL_PORT &= ~(1 << LCD_CTRL_EN);
-_delay_us(1);
+_delay_us(10);
 }
 
 uint8_t lcd_read_byte(void)
@@ -38,33 +38,61 @@ uint8_t lcd_read_byte(void)
     // Enter input mode
     LCD_DATA_DDR = 0;
 
+	_delay_us(1);
+	
     // Read data
     LCD_CTRL_PORT |= (1 << LCD_CTRL_EN);
-	_nop();
-    res = LCD_DATA_PIN;
+	
+	_delay_us(1);
+	
+	res = LCD_DATA_PIN;
+	
     LCD_CTRL_PORT &= ~(1 << LCD_CTRL_EN);
 
+	_delay_us(1);
+	
+	
+	
+	LCD_CTRL_PORT &= ~(1 << LCD_CTRL_RD);
+	
+	_delay_us(1);
+	
     // Enter write mode
     LCD_DATA_DDR = 0xff;
     return res;
 }
 
+static void lcd_wait_busy(void)
+{
+	uint8_t bt;
+	LCD_CTRL_PORT &= ~(1 << LCD_CTRL_RS);
+	_delay_us(10);
+	do {
+		bt = lcd_read_byte();
+	} while (bt & 0x80 == 0x80);
+}
 
 void lcd_write_cmd(uint8_t cmd)
 {
+//	lcd_wait_busy();
+	
     LCD_CTRL_PORT &= ~(1 << LCD_CTRL_RS);
-	_delay_us(1);
+	_delay_us(10);
     lcd_write_byte(cmd);
-    _delay_us(138);
+    _delay_ms(2);
 }
 
 void lcd_write_data(uint8_t data)
 {
+//	lcd_wait_busy();
+
     LCD_CTRL_PORT |= (1 << LCD_CTRL_RS);
-    _delay_us(1);
+    _delay_us(10);
 	lcd_write_byte(data);
-    _delay_us(144);
+    _delay_ms(2);
 }
+
+
 
 /////////////////////////////////////////////////////////////////////////
 // External interfacse
@@ -73,31 +101,40 @@ void LCDInit(void)
 {
     // HW init
     LCD_DATA_DDR = 0xff;
-    LCD_CTRL_DDR |= LCD_CTRL_MASK;
+	LCD_DATA_PORT = 0;
+    LCD_CTRL_DDR = LCD_CTRL_MASK;
 	LCD_CTRL_PORT &= ~(LCD_CTRL_MASK);
 	
 _delay_us(1);
 	
     LCD_CTRL_PORT &= ~(1 << LCD_CTRL_RS);
 
-    _delay_ms(15);
+    _delay_ms(50);
 
-    lcd_write_byte(0x3f);
+    lcd_write_byte(0x38);
 
     _delay_ms(5);
 
-    lcd_write_byte(0x3f);
+    lcd_write_byte(0x38);
 
-    _delay_us(110);
+    _delay_ms(1);
 
-    lcd_write_byte(0x3f);
+    lcd_write_byte(0x38);
 
-    _delay_us(140);
+    _delay_ms(140);
 
-	lcd_write_byte(0x38); _delay_us(140);
-	lcd_write_byte(0x08); _delay_us(140);
-	lcd_write_byte(0x01); _delay_us(140);
-	lcd_write_byte(0x06); _delay_us(140);
+	lcd_write_byte(0x38); _delay_ms(20);
+	lcd_write_byte(0x0e); _delay_ms(20);
+	lcd_write_byte(0x06); _delay_ms(20);
+	
+	LCD_CTRL_PORT |= (1 << LCD_CTRL_RS); _delay_ms(20);
+	
+	lcd_write_byte(0x48); _delay_ms(20);
+	lcd_write_byte(0x49); _delay_ms(20);
+		
+//	lcd_write_byte(0x08); _delay_ms(20);
+//	lcd_write_byte(0x01); _delay_ms(20);
+//	lcd_write_byte(0x06); _delay_ms(20);
 	
     //lcd_write_byte(0x3f); _delay_us(140);
     //lcd_write_byte(0x08); _delay_us(140);
@@ -109,9 +146,8 @@ _delay_us(1);
 
 void LCDClear(void)
 {
-    lcd_write_cmd(0x01);
-    lcd_write_cmd(0x02);
-	lcd_write_cmd(0x0F);
+    lcd_write_cmd(0x01); _delay_ms(20);
+    lcd_write_cmd(0x02); _delay_ms(20);
 }
 
 void LCDSetPos(uint8_t row, uint8_t col)
