@@ -12,9 +12,9 @@
  
  void LCDSetPos(uint8_t row, uint8_t col);
  
- void LCDPuts(const uint8_t *p);
+ void LCDPuts(const char *p);
  
- void LCDPuts_P(const uint8_t *p);
+ void LCDPuts_P(const char *p);
  
 
 #endif // LCD__TEXT_H

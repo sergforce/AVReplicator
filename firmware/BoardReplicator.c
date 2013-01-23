@@ -12,7 +12,11 @@
  *  setup of all components and the main program loop.
  */
  
-const char st_hello[] PROGMEM = "Hellow, World!";
+const char st_hello[] PROGMEM = "Hellow, World!5432";
+
+const char st_prg[] PROGMEM = "\xf5Programs";
+const char st_test[] PROGMEM = "\xf6Test";
+const char st_gen[] PROGMEM = "\xf7Generator";
 
 int main(void)
 {
@@ -26,7 +30,11 @@ int main(void)
 	sei();
 
 	LCDClear();
-	LCDPuts_P(st_hello);	
+	LCDPuts_P(st_hello);
+
+	LCDSetPos(1,0); LCDPuts_P(st_prg);
+	LCDSetPos(2,0); LCDPuts_P(st_test);
+	LCDSetPos(3,0); LCDPuts_P(st_gen);
 	
 	for (;;)
 	{

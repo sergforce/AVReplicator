@@ -10,7 +10,7 @@
 #define _nop() do { __asm__ __volatile__ ("nop"); } while (0)
 
 static void    lcd_write_byte(uint8_t ch);
-static uint8_t lcd_read_byte(void);
+//static uint8_t lcd_read_byte(void);
 static void    lcd_write_cmd(uint8_t cmd);
 static void    lcd_write_data(uint8_t data);
 
@@ -19,15 +19,16 @@ void lcd_write_byte(uint8_t ch)
 {
     // Note RS must be select outside
     LCD_CTRL_PORT &= ~(1 << LCD_CTRL_RD);
-_delay_us(10);
+	_nop();
 	LCD_CTRL_PORT |= (1 << LCD_CTRL_EN);
-_delay_us(10);
+	_nop();
     LCD_DATA_PORT = ch;
-_delay_us(10);
+	_nop();
     LCD_CTRL_PORT &= ~(1 << LCD_CTRL_EN);
-_delay_us(10);
+	_nop();
 }
 
+#if 0
 uint8_t lcd_read_byte(void)
 {
     uint8_t res;
@@ -71,25 +72,23 @@ static void lcd_wait_busy(void)
 		bt = lcd_read_byte();
 	} while (bt & 0x80 == 0x80);
 }
+#endif
+
 
 void lcd_write_cmd(uint8_t cmd)
 {
-//	lcd_wait_busy();
-	
     LCD_CTRL_PORT &= ~(1 << LCD_CTRL_RS);
-	_delay_us(10);
+	_nop();
     lcd_write_byte(cmd);
     _delay_ms(2);
 }
 
 void lcd_write_data(uint8_t data)
 {
-//	lcd_wait_busy();
-
     LCD_CTRL_PORT |= (1 << LCD_CTRL_RS);
-    _delay_us(10);
+    _nop();
 	lcd_write_byte(data);
-    _delay_ms(2);
+    _delay_us(40);
 }
 
 
@@ -105,7 +104,7 @@ void LCDInit(void)
     LCD_CTRL_DDR = LCD_CTRL_MASK;
 	LCD_CTRL_PORT &= ~(LCD_CTRL_MASK);
 	
-_delay_us(1);
+	_delay_us(1);
 	
     LCD_CTRL_PORT &= ~(1 << LCD_CTRL_RS);
 
@@ -121,41 +120,33 @@ _delay_us(1);
 
     lcd_write_byte(0x38);
 
-    _delay_ms(140);
+    _delay_us(140);
 
-	lcd_write_byte(0x38); _delay_ms(20);
-	lcd_write_byte(0x0e); _delay_ms(20);
-	lcd_write_byte(0x06); _delay_ms(20);
-	
-	LCD_CTRL_PORT |= (1 << LCD_CTRL_RS); _delay_ms(20);
-	
-	lcd_write_byte(0x48); _delay_ms(20);
-	lcd_write_byte(0x49); _delay_ms(20);
-		
-//	lcd_write_byte(0x08); _delay_ms(20);
-//	lcd_write_byte(0x01); _delay_ms(20);
-//	lcd_write_byte(0x06); _delay_ms(20);
-	
-    //lcd_write_byte(0x3f); _delay_us(140);
-    //lcd_write_byte(0x08); _delay_us(140);
-    //lcd_write_byte(0x01); _delay_us(140);
-    //lcd_write_byte(0x06); _delay_us(140);
-	
+	lcd_write_byte(0x38); _delay_ms(2);
+	lcd_write_byte(0x0e); _delay_ms(2);
+	lcd_write_byte(0x06); _delay_ms(2);
+			
 }
 
 
 void LCDClear(void)
 {
-    lcd_write_cmd(0x01); _delay_ms(20);
-    lcd_write_cmd(0x02); _delay_ms(20);
+    lcd_write_cmd(0x01);
+    lcd_write_cmd(0x02);
 }
 
 void LCDSetPos(uint8_t row, uint8_t col)
 {
-    lcd_write_cmd(0x80 | (row << 6) | (col & 0x1f));
+	switch (row) {
+	case 0: lcd_write_cmd(0x80 | (col & 0x0f)); break;
+	case 1: lcd_write_cmd(0x90 | (col & 0x0f)); break;
+	case 2: lcd_write_cmd(0xC0 | (col & 0x0f)); break;
+	case 3: lcd_write_cmd(0xD0 | (col & 0x0f)); break;
+	}
+
 }
 
-void LCDPuts(const uint8_t *p)
+void LCDPuts(const char *p)
 {
     char c, i;
     for(i=0; i < 32; i++, p++) {
@@ -168,7 +159,7 @@ void LCDPuts(const uint8_t *p)
     }
 }
 
-void LCDPuts_P(const uint8_t *p)
+void LCDPuts_P(const char *p)
 {
     char c, i;
     for(i=0; i < 32; i++, p++) {
