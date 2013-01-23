@@ -10,7 +10,7 @@
 // EEPROM size (for AT25256B)
 #define EESPI_PAGE_SIZE                  64
 #define EEPROM_SIZE_BITS                 15
-#define EEPROM_SIZE                      (1<<FLASH_SIZE_BITS)
+#define EEPROM_SIZE                      (1U<<EEPROM_SIZE_BITS)
 
 
 

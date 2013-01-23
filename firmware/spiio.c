@@ -1,34 +1,8 @@
-
-#include <avr/ports.h>
 #include <avr/io.h>
-#include <avr/delay.h>
+#include <util/delay.h>
 
-
-////////////////////////////////////////////////////////////
-// PORT CONFIGURATION
-//
-
-#define EE_DDR   DDRC
-#define EE_PORT  PORTC
-#define EE_CS0    0 //PC0
-#define EE_CS1    0 //PC0
-#define EE_CS2    0 //PC0
-#define EE_CS3    0 //PC0
-
-
-#define CT_DDR   DDRC
-#define CT_PORT  PORTC
-#define CT_CS    1 //PC1
-#define CT_RESET 2 //PC2
-
-
-#define DDR_SPI  DDRB
-#define DD_MOSI  3 //PB3
-#define DD_SCK   5 //PB5
-
-//
-// END OF PORT CONFIGURATION
-/////////////////////////////////////////////////////////////
+#include <PortConfig.h>
+#include "spiio.h"
 
 
 #define WAIT_FOR_SPI()   while(!(SPSR & (1<<SPIF)))
@@ -86,7 +60,7 @@ static inline uint8_t transferSPI(uint8_t data)
 // GENERIC EEPROM COMMANDS
 //
 
-static inline void eespi_write_enable()
+static inline void eespi_write_enable(void)
 {
     transferSPI(EESPI_WREN);
 }
@@ -111,7 +85,7 @@ static void eespi_wrtie_page(uint16_t addr, const uint8_t *data, uint8_t count)
   READ_SPI();
 }
 
-static void eespi_read(uint16_t addr, uint8_t *data, uint8_t count)
+static void eespi_read_page(uint16_t addr, uint8_t *data, uint8_t count)
 {
   transferSPI(EESPI_READ);
   transferSPI(addr>>8);
@@ -149,10 +123,10 @@ static void eespi_unselect(uint32_t addr)
 {
     uint8_t chip = addr >> EEPROM_SIZE_BITS;
     switch (chip) {
-    case 0:   EE_PORT |=  (1 << EE_CS); break;
-    case 1:   EE_PORT |=  (1 << EE_CS); break;
-    case 2:   EE_PORT |=  (1 << EE_CS); break;
-    case 3:   EE_PORT |=  (1 << EE_CS); break;
+    case 0:   EE_PORT |=  (1 << EE_CS0); break;
+    case 1:   EE_PORT |=  (1 << EE_CS1); break;
+    case 2:   EE_PORT |=  (1 << EE_CS2); break;
+    case 3:   EE_PORT |=  (1 << EE_CS3); break;
     }
 }
 
@@ -163,7 +137,7 @@ void eemem_write_page(uint32_t addr, const uint8_t *data, uint8_t count)
     eespi_unselect(addr);
 
     eespi_select(addr);
-    eespi_wrtie_page(addr & (EEPROM_SIZE - 1), data, count);
+    eespi_wrtie_page((uint16_t)(addr & (EEPROM_SIZE - 1)), data, count);
     eespi_unselect(addr);
 
     eespi_select(addr);
@@ -174,7 +148,7 @@ void eemem_write_page(uint32_t addr, const uint8_t *data, uint8_t count)
 void eemem_read_page(uint32_t addr, uint8_t *data, uint8_t count)
 {
     eespi_select(addr);
-    eespi_read_page(addr & (EEPROM_SIZE - 1), data, count);
+    eespi_read_page((uint16_t)(addr & (EEPROM_SIZE - 1)), data, count);
     eespi_unselect(addr);
 }
 
@@ -182,39 +156,6 @@ void eemem_read_page(uint32_t addr, uint8_t *data, uint8_t count)
 
 //////////////////////////////////////////////////////////////////////////
 // AVR SPI Functions
-
-int8_t avrisp_enter(void)
-{
-  int8_t rep, i;
-  for (i = 0; i < 16; i++) {
-    AVRSPI_RESET_DOWN(); AVRSPI_RESET_DOWN();
-
-    _delay_ms(50);
-
-    transferSPI(AVRISP_ENTER_B0);
-    transferSPI(AVRISP_ENTER_B1);
-    rep = transferSPI(0xFF);
-    transferSPI(0xFF);
-
-    if (rep != AVRISP_ENTER_B1) {
-      AVRSPI_RESET_UP(); AVRSPI_RESET_UP();
-
-      _delay_ms(100);
-
-    } else {
-      return 0;
-    }
-  }
-  return -1;
-}
-
-static int8_t avrisp_transfer(int8_t a, int8_t b, int8_t c, int8_t d)
-{
-    transferSPI(a);
-    transferSPI(b);
-    transferSPI(c);
-    return transferSPI(d);
-}
 
 #define AVRISP_MEGA32U2_ID   0x8A951E
 #define AVRISP_ENTER_B0    0xAC
@@ -251,6 +192,40 @@ static int8_t avrisp_transfer(int8_t a, int8_t b, int8_t c, int8_t d)
 
 #define AVRISP_POLL_RDY()           avrisp_transfer(0xf0, 0x00, 0xFF, 0xFF)
 
+
+
+int8_t avrisp_enter(void)
+{
+  int8_t rep, i;
+  for (i = 0; i < 16; i++) {
+    AVRSPI_RESET_DOWN(); AVRSPI_RESET_DOWN();
+
+    _delay_ms(50);
+
+    transferSPI(AVRISP_ENTER_B0);
+    transferSPI(AVRISP_ENTER_B1);
+    rep = transferSPI(0xFF);
+    transferSPI(0xFF);
+
+    if (rep != AVRISP_ENTER_B1) {
+      AVRSPI_RESET_UP(); AVRSPI_RESET_UP();
+
+      _delay_ms(100);
+
+    } else {
+      return 0;
+    }
+  }
+  return -1;
+}
+
+static int8_t avrisp_transfer(int8_t a, int8_t b, int8_t c, int8_t d)
+{
+    transferSPI(a);
+    transferSPI(b);
+    transferSPI(c);
+    return transferSPI(d);
+}
 
 int32_t avrisp_readsignature(void)
 {
@@ -306,7 +281,7 @@ void avrisp_flash_page(uint16_t addr, const uint8_t* data, uint8_t count)
     //Wait for finalizing
     do {
         b = AVRISP_POLL_RDY();
-    } while (b & 1 == 1);
+    } while ((b & 1) == 1);
 }
 
 void avrisp_read_eeprom(uint16_t addr, uint8_t* data, uint8_t count)
@@ -332,7 +307,7 @@ void avrisp_write_eeprom_page(uint16_t addr, uint8_t* data, uint8_t count)
     //Wait for finalizing
     do {
         b = AVRISP_POLL_RDY();
-    } while (b & 1 == 1);
+    } while ((b & 1) == 1);
 }
 
 void avrisp_chip_erase(void)
@@ -357,111 +332,16 @@ uint8_t avrisp_read_fuse_ex(void)
 
 void avrisp_write_fuse(uint8_t fuse)
 {
-    return AVRISP_WRITE_FUSE(fuse);
+    AVRISP_WRITE_FUSE(fuse);
 }
 
 void avrisp_write_fuse_high(uint8_t fuse)
 {
-    return AVRISP_WRITE_FUSE_HIGH(fuse);
+    AVRISP_WRITE_FUSE_HIGH(fuse);
 }
 
 void avrisp_write_fuse_ex(uint8_t fuse)
 {
-    return AVRISP_WRITE_FUSE_EX(fuse);
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////
-
-void copy_from_ct_to_ee(void);
-
-#include <SPI.h>
-
-
-
-
-void hardware_init(void)
-{
-  // For EEPORM
-  EE_DDR |= (1 << EE_CS);
-  EE_PORT |= (1 << EE_CS);
-
-  // For ClockTamer
-  CT_DDR |= (1 << CT_CS) | (1 << CT_RESET);
-  CT_PORT |= (1 << CT_CS) | (1 << CT_RESET);
-
-  //SPI Init
-  DDR_SPI = (1<<DD_MOSI) | (1<<DD_SCK);
-  // Enable SPI, Master, set clock rate fck/2
-  spi_fast();
-
-//  SPSR = (1<<SPI2X);
-//  SPCR = (1<<SPE) | (1<<MSTR);
-
-//  SPCR = (1<<SPE) | (1<<MSTR) | (1<<SPR1);
-}
-
-void setup() {
-
-  //Initialize serial and wait for port to open:
-  Serial.begin(9600);
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for Leonardo only
-  }
-
-  hardware_init();
-
-  Serial.println("SETUP");
-
-  SPI.begin();
-
-  spi_slow();
-  int8_t rep = avrisp_enter();
-  if (rep == AVRISP_ENTER_B1) {
-      Serial.println("ISP OK");
-
-      int32_t sig = avrisp_readsignature();
-
-      if (sig == AVRISP_MEGA32U2_ID) {
-         Serial.println("MEGA32U2 Detected");
-
-      } else {
-         Serial.print("Incorrect ISP id:");
-         Serial.print(sig, HEX);
-      }
-
-  } else {
-      Serial.println("ISP SYNC FAILED");
-  }
-  avrisp_leave();
-
-  spi_fast();
-}
-
-uint8_t data[16] = "TEST data1";
-uint8_t data2[17] = "!!!!!!!!!!!!!!";
-
-void loop() {
-
-  hardware_init();
-
-  Serial.println("Prepare");
-  eespi_wrtie_page(0, data, 16);
-  Serial.println("Written data");
-  eespi_wait_for_write();
-  Serial.println("Ready");
-  eespi_read(0, data2, 16);
-  Serial.println("Data:");
-
-  Serial.println((const char*)data2);
-
-
-  // prints title with ending line break
-  for (;;);
-
-
+    AVRISP_WRITE_FUSE_EX(fuse);
 }
 

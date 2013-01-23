@@ -73,12 +73,12 @@ typedef int8_t (*CALLBACK_FLASH_FN)(int8_t reason, int8_t progress);
 /**
  * @brief EDSInit  Initialize global flash structure
  */
-void EDSInit();
+void EDSInit(void);
 
 /**
  * @brief EDSClear Clear all frimware
  */
-void EDSClear();
+void EDSClear(void);
 
 /**
  * @brief EDSAppendFirmwareFromDevice Read firmware from device and store it, also select it as default
@@ -95,7 +95,7 @@ void EDSAppendFirmwareFromDevice(CALLBACK_FLASH_FN fn);
 uint8_t EDSAppendDl(uint8_t *pckdata, uint8_t pcksize);
 
 
-uint8_t EDSGetFirmwareCount();
+uint8_t EDSGetFirmwareCount(void);
 
 /**
  * @brief EDSSelectFirmware Select firmware to work with
