@@ -139,8 +139,8 @@ void LCDSetPos(uint8_t row, uint8_t col)
 {
 	switch (row) {
 	case 0: lcd_write_cmd(0x80 | (col & 0x0f)); break;
-	case 1: lcd_write_cmd(0x90 | (col & 0x0f)); break;
-	case 2: lcd_write_cmd(0xC0 | (col & 0x0f)); break;
+    case 1: lcd_write_cmd(0xC0 | (col & 0x0f)); break;
+    case 2: lcd_write_cmd(0x90 | (col & 0x0f)); break;
 	case 3: lcd_write_cmd(0xD0 | (col & 0x0f)); break;
 	}
 

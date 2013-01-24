@@ -51,6 +51,16 @@
 		#define LED_3     PF6
 		#define LED_4     PF7
 		
+        // Control buttons
+        #define CTRL_DDR    DDRD
+        #define CTRL_PIN    PIND
+        #define CTRL_PORT   PORTD
+        #define CTRL_BTUP   PD0
+        #define CTRL_BTDOWN PD1
+        #define CTRL_BTOK   PD2
+        #define CTRL_BTBACK PD3
+
+
 	#else
 
 		#error Unsupported architecture for pinouts.

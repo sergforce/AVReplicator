@@ -19,6 +19,7 @@
 		#include <LUFA/Drivers/USB/USB.h>
 
 		#include "lcd_text.h"
+        #include "control.h"
 		
 	/* Function Prototypes: */
 		void SetupHardware(void);

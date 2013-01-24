@@ -14,14 +14,11 @@
  
 const char st_hello[] PROGMEM = "Hellow, World!5432";
 
-const char st_prg[] PROGMEM = "\xf5Programs";
-const char st_test[] PROGMEM = "\xf6Test";
-const char st_gen[] PROGMEM = "\xf7Generator";
 
 int main(void)
 {
 	// LED INIT
-	LED_DDR = (1 << LED_1) | (1 << LED_2) | (1 << LED_3);
+    LED_DDR = (1 << LED_1) | (1 << LED_2) | (1 << LED_3) | (1 << LED_4);
 	LED_PORT = 0;
 	LED_PORT |= (1 << LED_1);	
 	
@@ -32,26 +29,53 @@ int main(void)
 	LCDClear();
 	LCDPuts_P(st_hello);
 
-	LCDSetPos(1,0); LCDPuts_P(st_prg);
-	LCDSetPos(2,0); LCDPuts_P(st_test);
-	LCDSetPos(3,0); LCDPuts_P(st_gen);
-	
+//	LCDSetPos(1,0); LCDPuts_P(st_prg);
+//	LCDSetPos(2,0); LCDPuts_P(st_test);
+//	LCDSetPos(3,0); LCDPuts_P(st_gen);
+
+
+    uint8_t startPos = 0;
+
 	for (;;)
-	{
-	
-		//USB_USBTask();
+	{	
+        //USB_USBTask();
+
 		LED_PORT |= (1 << LED_3);
-		_delay_ms(100);
-		_delay_ms(100);
-		_delay_ms(100);
-		_delay_ms(100);
-		_delay_ms(100);
+        _delay_ms(10);
 		LED_PORT &= ~(1 << LED_3);
-		_delay_ms(100);
-		_delay_ms(100);
-		_delay_ms(100);
-		_delay_ms(100);
-		_delay_ms(100);		
+        _delay_ms(10);
+
+
+        CtrlUpdate();
+        uint8_t update = 0;
+
+        if (CtrlIsUpPressed()) {
+            startPos += 0x10;
+            update = 1;
+        } else if (CtrlIsDownPressed()) {
+            startPos -= 0x10;
+            update = 1;
+        }
+        if (CtrlIsOkPressed()) {
+            LED_PORT ^= (1 << LED_4);
+        }
+        if (CtrlIsBackPressed()) {
+            LED_PORT ^= (1 << LED_2);
+        }
+
+        if (update) {
+            uint8_t q,k;
+            for (q=1; q<4; q++) {
+                LCDSetPos(q,0);
+                for (k=0; k < 16; k++) {
+                    char sym[2];
+                    sym[0] = startPos + 0x10 * q + k;
+                    sym[1] = 0;
+
+                    LCDPuts(sym);
+                }
+            }
+        }
 	}
 }
 
@@ -70,6 +94,8 @@ void SetupHardware(void)
 
 	LCDInit();
 	
+    CtrlInit();
+
 	XMCRA = 0;
 }
 
