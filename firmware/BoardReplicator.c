@@ -29,16 +29,12 @@ int main(void)
 	LCDClear();
 	LCDPuts_P(st_hello);
 
-//	LCDSetPos(1,0); LCDPuts_P(st_prg);
-//	LCDSetPos(2,0); LCDPuts_P(st_test);
-//	LCDSetPos(3,0); LCDPuts_P(st_gen);
-
 
     uint8_t startPos = 0;
 
 	for (;;)
 	{	
-        //USB_USBTask();
+        USB_USBTask();
 
 		LED_PORT |= (1 << LED_3);
         _delay_ms(10);
