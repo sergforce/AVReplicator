@@ -7,6 +7,7 @@
 #define AVRISP_MEGA32U2_EESIZE           1024
 #define AVRISP_MEGA32U2_FLASHSIZE        32768
 
+#define AVRISP_MEGA32U2_EEPAGESIZE_BYTES 4
 
 #ifdef USE_EEPROM
 #define EEPROM_CHIPS                     3

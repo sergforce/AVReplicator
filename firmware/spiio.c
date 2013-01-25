@@ -207,7 +207,7 @@ void eemem_read_page(uint32_t addr, uint8_t *data, uint8_t count)
 #define AVRISP_WRITE_FUSE_EX(i)     avrisp_transfer(0xAC, 0xA4, 0xFF, i)
 #define AVRISP_READ_FUSE()          avrisp_transfer(0x50, 0x00, 0xFF, 0xFF)
 #define AVRISP_READ_FUSE_HIGH()     avrisp_transfer(0x58, 0x08, 0xFF, 0xFF)
-#define AVRISP_READ_FUSE_EX()       avrisp_transfer(0x50, 0x04, 0xFF, 0xFF)
+#define AVRISP_READ_FUSE_EX()       avrisp_transfer(0x50, 0x08, 0xFF, 0xFF)
 
 #define AVRISP_READ_CAL()           avrisp_transfer(0x31, 0x00, 0x00, 0xFF)
 
@@ -287,6 +287,14 @@ void avrisp_read_program(uint16_t addr, uint8_t* data, uint8_t count)
   }
 }
 
+static void wait_rdy(void)
+{
+    uint8_t b;
+    do {
+        b = AVRISP_POLL_RDY();
+    } while ((b & 1) == 1);
+}
+
 void avrisp_flash_page(uint16_t addr, const uint8_t* data, uint8_t count)
 {
     uint8_t b;
@@ -300,9 +308,7 @@ void avrisp_flash_page(uint16_t addr, const uint8_t* data, uint8_t count)
     AVRISP_WRITE_PROG(q.b[1], q.b[0]);
 
     //Wait for finalizing
-    do {
-        b = AVRISP_POLL_RDY();
-    } while ((b & 1) == 1);
+    wait_rdy();
 }
 
 void avrisp_read_eeprom(uint16_t addr, uint8_t* data, uint16_t count)
@@ -326,14 +332,15 @@ void avrisp_write_eeprom_page(uint16_t addr, uint8_t* data, uint8_t count)
     AVRISP_WRITE_EEPROM(q.b[1], q.b[0]);
 
     //Wait for finalizing
-    do {
-        b = AVRISP_POLL_RDY();
-    } while ((b & 1) == 1);
+    wait_rdy();
 }
 
 void avrisp_chip_erase(void)
 {
     AVRISP_CHIP_ERASE();
+
+    //Wait for finalizing
+    wait_rdy();
 }
 
 uint8_t avrisp_read_fuse(void)
@@ -354,15 +361,18 @@ uint8_t avrisp_read_fuse_ex(void)
 void avrisp_write_fuse(uint8_t fuse)
 {
     AVRISP_WRITE_FUSE(fuse);
+    wait_rdy();
 }
 
 void avrisp_write_fuse_high(uint8_t fuse)
 {
     AVRISP_WRITE_FUSE_HIGH(fuse);
+    wait_rdy();
 }
 
 void avrisp_write_fuse_ex(uint8_t fuse)
 {
     AVRISP_WRITE_FUSE_EX(fuse);
+    wait_rdy();
 }
 

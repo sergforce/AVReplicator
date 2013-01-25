@@ -26,6 +26,27 @@ const char afe_isp[] PROGMEM    = "Can't enter ISP";
 const char afe_sig[] PROGMEM    = "Incorrect sign.";
 const char afe_unkn[] PROGMEM   = "Unknown error";
 
+const char afe_fprog[] PROGMEM  = "Failed flash";
+const char afe_fee[] PROGMEM    = "Failed eeprom";
+const char afe_ff[] PROGMEM     = "Failed fuses";
+
+
+const char afe_nofw[] PROGMEM   = "No firmwares";
+
+
+void DisplayError(uint8_t code)
+{
+    switch (code) {
+    case AFE_OK:               LCDPuts_P(afe_ok); break;
+    case AFE_NO_MEM:           LCDPuts_P(afe_no_mem); break;
+    case AFE_FAILED_ENTER_ISP: LCDPuts_P(afe_isp); break;
+    case AFE_FAILED_SIGNATURE: LCDPuts_P(afe_sig); break;
+    case AFE_FAILED_PROG_FLASH:LCDPuts_P(afe_fprog); break;
+    case AFE_FAILED_PROG_EEPROM:LCDPuts_P(afe_fee); break;
+    case AFE_FAILED_PROG_FUSE: LCDPuts_P(afe_ff); break;
+    default:                   LCDPuts_P(afe_unkn); break;
+    }
+}
 
 int main(void)
 {
@@ -64,18 +85,20 @@ int main(void)
         }
         if (CtrlIsOkPressed()) {
             LED_PORT ^= (1 << LED_4);
+
+            LCDSetPos(3,0);
+            struct FirmwareId* p = EDSSelectFirmware(0);
+            if (p) {
+                DisplayError(EDSFlashFirmware(0));
+            } else {
+                LCDPuts_P(afe_nofw);
+            }
         }
         if (CtrlIsBackPressed()) {
             LED_PORT ^= (1 << LED_2);
 
             LCDSetPos(3,0);
-            switch (EDSAppendFirmwareFromDevice(0)) {
-            case AFE_OK:               LCDPuts_P(afe_ok); break;
-            case AFE_NO_MEM:           LCDPuts_P(afe_no_mem); break;
-            case AFE_FAILED_ENTER_ISP: LCDPuts_P(afe_isp); break;
-            case AFE_FAILED_SIGNATURE: LCDPuts_P(afe_sig); break;
-            default:                   LCDPuts_P(afe_unkn); break;
-            }
+            DisplayError(EDSAppendFirmwareFromDevice(0));
         }
 
         if (update) {
