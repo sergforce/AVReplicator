@@ -1,24 +1,38 @@
 #ifndef SPIIO_H
 #define SPIIO_H
 
-
 // PAGE SIZES (for ATMEGA32U2)
 #define AVRISP_MEGA32U2_PAGESIZE         64
 #define AVRISP_MEGA32U2_PAGESIZE_BYTES   (AVRISP_MEGA32U2_PAGESIZE*2)
+#define AVRISP_MEGA32U2_EESIZE           1024
+#define AVRISP_MEGA32U2_FLASHSIZE        32768
 
+
+#ifdef USE_EEPROM
+#define EEPROM_CHIPS                     3
 
 // EEPROM size (for AT25256B)
 #define EESPI_PAGE_SIZE                  64
 #define EEPROM_SIZE_BITS                 15
 #define EEPROM_SIZE                      (1U<<EEPROM_SIZE_BITS)
 
+#define EEPROM_TOTAL_SIZE                ((uint32_t)EEPROM_CHIPS*(EEPROM_SIZE))
+#endif
+
+/**
+ * @brief SPIInit
+ * Initialize SPI for Memory and ClockTamer
+ */
+void SPIInit(void);
 
 
-
-
+#ifdef USE_EEPROM
 void eemem_write_page(uint32_t addr, const uint8_t *data, uint8_t count);
 void eemem_read_page(uint32_t addr, uint8_t *data, uint8_t count);
+#endif
 
+
+#define AVRISP_MEGA32U2_ID   0x8A951E
 
 /**
  * @brief avrisp_leave Leave AVR ISP mode
@@ -59,7 +73,7 @@ void avrisp_flash_page(uint16_t addr, const uint8_t* data, uint8_t count);
  * @param data pointer to write
  * @param count of bytes
  */
-void avrisp_read_eeprom(uint16_t addr, uint8_t* data, uint8_t count);
+void avrisp_read_eeprom(uint16_t addr, uint8_t* data, uint16_t count);
 
 /**
  * @brief avrisp_write_eeprom_page

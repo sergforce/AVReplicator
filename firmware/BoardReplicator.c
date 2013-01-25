@@ -6,13 +6,25 @@
  */
 
 #include "BoardReplicator.h"
+#include "datast.h"
 #include <PortConfig.h>
+#include "spiio.h"
+
+
 
 /** Main program entry point. This routine contains the overall program flow, including initial
  *  setup of all components and the main program loop.
  */
  
 const char st_hello[] PROGMEM = "Hellow, World!5432";
+
+
+//           Maximum message      "0123456789012345"
+const char afe_ok[] PROGMEM     = "Ok";
+const char afe_no_mem[] PROGMEM = "No free memory";
+const char afe_isp[] PROGMEM    = "Can't enter ISP";
+const char afe_sig[] PROGMEM    = "Incorrect sign.";
+const char afe_unkn[] PROGMEM   = "Unknown error";
 
 
 int main(void)
@@ -24,11 +36,9 @@ int main(void)
 	
 	SetupHardware();
 
-	sei();
+	sei();    
 
 	LCDClear();
-	LCDPuts_P(st_hello);
-
 
     uint8_t startPos = 0;
 
@@ -57,6 +67,15 @@ int main(void)
         }
         if (CtrlIsBackPressed()) {
             LED_PORT ^= (1 << LED_2);
+
+            LCDSetPos(3,0);
+            switch (EDSAppendFirmwareFromDevice(0)) {
+            case AFE_OK:               LCDPuts_P(afe_ok); break;
+            case AFE_NO_MEM:           LCDPuts_P(afe_no_mem); break;
+            case AFE_FAILED_ENTER_ISP: LCDPuts_P(afe_isp); break;
+            case AFE_FAILED_SIGNATURE: LCDPuts_P(afe_sig); break;
+            default:                   LCDPuts_P(afe_unkn); break;
+            }
         }
 
         if (update) {
@@ -86,12 +105,15 @@ void SetupHardware(void)
 	clock_prescale_set(clock_div_1);
 
 	/* Hardware Initialization */
-	USB_Init();
+    USB_Init(USB_MODE_UID);
 
 	LCDInit();
 	
     CtrlInit();
 
+    SPIInit();
+
+    EDSInit();
 	XMCRA = 0;
 }
 
@@ -107,3 +129,7 @@ void EVENT_USB_Device_ControlRequest(void)
 //	CDC_Device_ProcessControlRequest(&VirtualSerial_CDC_Interface);
 }
 
+void EVENT_USB_UIDChange(void)
+{
+    LED_PORT ^= (1 << LED_4);
+}

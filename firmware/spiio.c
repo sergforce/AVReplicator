@@ -28,7 +28,7 @@
 #define AVRSPI_RESET_UP()   CT_PORT |=  (1 << CT_RESET)
 
 
-
+#define _nop() do { __asm__ __volatile__ ("nop"); } while (0)
 
 //////////////////////////////////////////////////////////////////////////
 // GENERIC SPI COMMANDS
@@ -42,11 +42,30 @@ void spi_fast(void)
   SPCR = (1<<SPE) | (1<<MSTR);
 }
 
-// F/64
+// F/128
 void spi_slow(void)
 {
   SPSR = 0;
-  SPCR = (1<<SPE) | (1<<MSTR) | (1<<SPR1);
+  SPCR = (1<<SPE) | (1<<MSTR) | (1<<SPR1) | (1<<SPR0);
+}
+
+void SPIInit(void)
+{
+    SPI_DDR |= (1 << SPI_MOSI) | (1 << SPI_SCK);
+
+    //Memory CSs
+    EE_DDR |= (1 << EE_CS0) | (1 << EE_CS1) | (1 << EE_CS2) | (1 << EE_CS3);
+    EE_PORT |= (1 << EE_CS0) | (1 << EE_CS1) | (1 << EE_CS2) | (1 << EE_CS3);
+
+    // ClockTamer ISP
+    CT_DDR |= (1 << CT_POWER) | (1 << CT_RESET);
+    CT_PORT |= ((1 << CT_POWER) | (1 << CT_RESET));
+
+    // ClockTamer SPI CS
+    CTS_DDR |= (1 << CTS_CS);
+    CTS_PORT |= (1 << CTS_CS);
+
+    spi_slow();
 }
 
 static inline uint8_t transferSPI(uint8_t data)
@@ -56,6 +75,7 @@ static inline uint8_t transferSPI(uint8_t data)
     return READ_SPI();
 }
 
+#ifdef USE_EEPROM
 //////////////////////////////////////////////////////////////////////////
 // GENERIC EEPROM COMMANDS
 //
@@ -117,6 +137,7 @@ static void eespi_select(uint32_t addr)
     case 2:  EE_PORT &= ~(1 << EE_CS2); break;
     case 3:  EE_PORT &= ~(1 << EE_CS3); break;
     }
+    _nop();
 }
 
 static void eespi_unselect(uint32_t addr)
@@ -128,6 +149,7 @@ static void eespi_unselect(uint32_t addr)
     case 2:   EE_PORT |=  (1 << EE_CS2); break;
     case 3:   EE_PORT |=  (1 << EE_CS3); break;
     }
+    _nop();
 }
 
 void eemem_write_page(uint32_t addr, const uint8_t *data, uint8_t count)
@@ -152,12 +174,11 @@ void eemem_read_page(uint32_t addr, uint8_t *data, uint8_t count)
     eespi_unselect(addr);
 }
 
+#endif
 
 
 //////////////////////////////////////////////////////////////////////////
 // AVR SPI Functions
-
-#define AVRISP_MEGA32U2_ID   0x8A951E
 #define AVRISP_ENTER_B0    0xAC
 #define AVRISP_ENTER_B1    0x53
 
@@ -200,7 +221,7 @@ int8_t avrisp_enter(void)
   for (i = 0; i < 16; i++) {
     AVRSPI_RESET_DOWN(); AVRSPI_RESET_DOWN();
 
-    _delay_ms(50);
+    _delay_ms(50+30*i);
 
     transferSPI(AVRISP_ENTER_B0);
     transferSPI(AVRISP_ENTER_B1);
@@ -210,7 +231,7 @@ int8_t avrisp_enter(void)
     if (rep != AVRISP_ENTER_B1) {
       AVRSPI_RESET_UP(); AVRSPI_RESET_UP();
 
-      _delay_ms(100);
+      _delay_ms(1+10*i);
 
     } else {
       return 0;
@@ -284,7 +305,7 @@ void avrisp_flash_page(uint16_t addr, const uint8_t* data, uint8_t count)
     } while ((b & 1) == 1);
 }
 
-void avrisp_read_eeprom(uint16_t addr, uint8_t* data, uint8_t count)
+void avrisp_read_eeprom(uint16_t addr, uint8_t* data, uint16_t count)
 {
     u16_sep_t q;
     q.a = addr;

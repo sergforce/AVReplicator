@@ -13,21 +13,26 @@
 	    // EEPROM
 		#define EE_DDR   DDRB
 		#define EE_PORT  PORTB
-		#define EE_CS0   PB4
-		#define EE_CS1   PB5
-		#define EE_CS2   PB6
-		#define EE_CS3   PB7
+        #define EE_CS0   PB5
+        #define EE_CS1   PB6
+        #define EE_CS2   PB4
+        #define EE_CS3   PB7
 
-        // Clock Tamer Header
-		#define CT_DDR   DDRC
-		#define CT_PORT  PORTC
-		#define CT_CS    PC1
-		#define CT_RESET PC2
+        // Clock Tamer CS for SPI
+        #define CTS_DDR   DDRB
+        #define CTS_PORT  PORTB
+        #define CTS_CS    PB0
+
+        // Clock Tamer CS for Power and ISP
+        #define CT_DDR    DDRC
+        #define CT_PORT   PORTC
+        #define CT_POWER  PC6
+        #define CT_RESET  PC5
 
         // Generic SPI
-		#define DDR_SPI  DDRB
-		#define DD_MOSI  PB3
-		#define DD_SCK   PB1		
+        #define SPI_DDR   DDRB
+        #define SPI_MOSI  PB2
+        #define SPI_SCK   PB1
 
 		
 		// Generic 4*20 LCD

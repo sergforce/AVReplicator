@@ -8,19 +8,21 @@
  *
  */
 
-#define BLOCK_SIZE 256
+//BM00
+#define BLOCK_MAGIC    0x30304D42UL
 
 /**
  * @brief The BlockHeader struct
  *
- * Must be placed at zero offset in memory.
+ * Must be placed at 4 offset in memory.
  * Should be written as @ref BLOCK_SIZE bytes
  *
  */
 struct BlockHeader
 {
-    uint16_t firmwareOff[4]; /**< Offset of FirmwareId structure */
-    uint16_t freeOffset;     /**< pointer to free offset */
+    uint32_t magic;          /**< BLOCK_MAGIC */
+    uint32_t firmwareOff[4]; /**< Offset of FirmwareId structure */
+    uint32_t freeOffset;     /**< pointer to free offset */
 };
 
 #define FIF_USE_LOCKS  0x01
@@ -35,7 +37,7 @@ struct BlockHeader
  */
 struct FirmwareId
 {
-    uint16_t offset;      /**< Offset of this structure in memory. To check this structure is valid */
+    uint32_t offset;      /**< Offset of this structure in memory. To check this structure is valid */
     char name[16];        /**< Name of firmware */
 
     uint16_t programSize; /**< Program size in bytes */
@@ -80,11 +82,23 @@ void EDSInit(void);
  */
 void EDSClear(void);
 
+
+enum AppendFirmwareErrors {
+    AFE_OK = 0,
+    AFE_NO_MEM,
+    AFE_FAILED_ENTER_ISP,
+    AFE_FAILED_SIGNATURE,
+    AFE_FAILED_PROG_FLASH,
+    AFE_FAILED_PROG_EEPROM,
+    AFE_FAILED_PROG_FUSE,
+    AFE_FAILED_PROG_LOCK
+};
+
 /**
  * @brief EDSAppendFirmwareFromDevice Read firmware from device and store it, also select it as default
  * @param fn
  */
-void EDSAppendFirmwareFromDevice(CALLBACK_FLASH_FN fn);
+uint8_t EDSAppendFirmwareFromDevice(CALLBACK_FLASH_FN fn);
 
 /**
  * @brief EDSAppendDl  Update firmware from USB
