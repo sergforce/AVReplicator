@@ -33,6 +33,7 @@ const char afe_ff[] PROGMEM     = "Failed fuses";
 
 const char afe_nofw[] PROGMEM   = "No firmwares";
 
+const char ct_ver[] PROGMEM = "HWI";
 
 void DisplayError(uint8_t code)
 {
@@ -59,7 +60,7 @@ int main(void)
 
 	sei();    
 
-	LCDClear();
+    LCDClear();
 
     uint8_t startPos = 0;
 
@@ -80,8 +81,17 @@ int main(void)
             startPos += 0x10;
             update = 1;
         } else if (CtrlIsDownPressed()) {
-            startPos -= 0x10;
-            update = 1;
+            //startPos -= 0x10;
+            //update = 1;
+            char d[32];
+            uint8_t len = clocktamer_sendcmd_p(ct_ver, d, sizeof(d));
+            if (len > 0) {
+               d[len] = 0;
+
+               LCDClear();
+               LCDSetPos(1,0);
+               LCDPuts(d);
+            }
         }
         if (CtrlIsOkPressed()) {
             LED_PORT ^= (1 << LED_4);

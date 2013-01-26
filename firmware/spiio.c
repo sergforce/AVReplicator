@@ -1,5 +1,6 @@
 #include <avr/io.h>
 #include <util/delay.h>
+#include <avr/pgmspace.h>
 
 #include <PortConfig.h>
 #include "spiio.h"
@@ -375,4 +376,80 @@ void avrisp_write_fuse_ex(uint8_t fuse)
     AVRISP_WRITE_FUSE_EX(fuse);
     wait_rdy();
 }
+
+
+//ClockTamer
+
+#define CLOCKTAMER_SELECT()    do { SPCR |= (1<<CPOL); _nop(); _nop(); CTS_PORT &= ~(1 << CTS_CS); } while (0)
+#define CLOCKTAMER_UNSELECT()  do { CTS_PORT |=  (1 << CTS_CS);_nop(); _nop(); SPCR &= ~(1<<CPOL);   } while (0)
+
+
+uint8_t clocktamer_sendcmd_p(const char* cmd_p, char* reply, uint8_t max_reply)
+{
+    CLOCKTAMER_SELECT();
+
+    char cmd;
+    while ((cmd = pgm_read_byte(cmd_p++))) {
+        transferSPI(cmd);
+        //_delay_us(100);
+    }
+    transferSPI('\n');
+    CLOCKTAMER_UNSELECT();
+
+    uint16_t i;
+    uint32_t j;
+#define MAX_ITER_J  600
+
+
+    // Wait for maximum of 0.5 sec
+    for (i = 0; i < 5000; i++) {
+        _delay_us(10);
+
+        CLOCKTAMER_SELECT();
+        cmd = transferSPI(0xFF);
+        CLOCKTAMER_UNSELECT();
+
+        _delay_us(90);
+
+        if (cmd != 0xFF && cmd != 0x00) {
+            //Start of reply
+            uint8_t rep;
+            for (rep = 1; rep < max_reply; rep++) {
+                *reply++ = cmd;
+
+                CLOCKTAMER_SELECT();
+                cmd = transferSPI(0xFF);
+                CLOCKTAMER_UNSELECT();
+                _delay_us(50);
+
+                if (cmd == '\n' || cmd == '\r') {//End of message
+                    *reply = 0; //Terminate string
+                    goto end_of_reply;
+                } else if (cmd == 0xFF || cmd == 0) {
+                    for (j = 0; j < MAX_ITER_J; j++) {
+                        _delay_us(50);
+                        CLOCKTAMER_SELECT();
+                        cmd = transferSPI(0xFF);
+                        CLOCKTAMER_UNSELECT();
+                        if (cmd != 0xFF && cmd != 0x00)
+                            break;
+                    }
+                    if (j == MAX_ITER_J)
+                        goto end_of_reply;
+                }
+            }
+
+end_of_reply:
+            //Message truncated
+
+            return rep;
+        }
+        CLOCKTAMER_UNSELECT();
+    }
+
+    CLOCKTAMER_UNSELECT();
+    return 0; //No message has been received
+}
+
+
 

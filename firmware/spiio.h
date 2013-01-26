@@ -112,4 +112,20 @@ void avrisp_write_fuse(uint8_t fuse);
 void avrisp_write_fuse_high(uint8_t fuse);
 void avrisp_write_fuse_ex(uint8_t fuse);
 
+
+
+
+
+
+
+
+/**
+ * @brief clocktamer_sendcmd_p Send command from FLASH to ClockTamer and store reply to RAM
+ * @param cmd_p      pointer to FLASH containing command
+ * @param reply      buffer to store reply
+ * @param max_reply  maximum reply length
+ * @return actual reply len, 0 in case of failure
+ */
+uint8_t clocktamer_sendcmd_p(const char* cmd_p, char* reply, uint8_t max_reply);
+
 #endif // SPIIO_H
