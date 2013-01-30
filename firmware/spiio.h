@@ -128,4 +128,12 @@ void avrisp_write_fuse_ex(uint8_t fuse);
  */
 uint8_t clocktamer_sendcmd_p(const char* cmd_p, char* reply, uint8_t max_reply);
 
+/**
+ * @brief clocktamer_get_replyln Receive one line of message
+ * @param reply         buffer to store reply
+ * @param max_reply     maximum reply length
+ * @return actual reply len, 0 in case of failure
+ */
+uint8_t clocktamer_get_replyln(char* reply, uint8_t max_reply);
+
 #endif // SPIIO_H

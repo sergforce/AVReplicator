@@ -384,6 +384,71 @@ void avrisp_write_fuse_ex(uint8_t fuse)
 #define CLOCKTAMER_UNSELECT()  do { CTS_PORT |=  (1 << CTS_CS);_nop(); _nop(); SPCR &= ~(1<<CPOL);   } while (0)
 
 
+uint8_t clocktamer_get_replyln(char* reply, uint8_t max_reply)
+{
+    uint8_t cmd;
+    uint16_t i;
+    uint16_t j;
+#define MAX_ITER_J  600
+
+    // Wait for maximum of 0.5 sec
+    for (i = 0; i < 5000; i++) {
+        _delay_us(10);
+
+        CLOCKTAMER_SELECT();
+        cmd = transferSPI(0xFF);
+        CLOCKTAMER_UNSELECT();
+
+        _delay_us(20);
+
+        if (cmd != 0xFF && cmd != 0x00) {
+            //Start of reply
+            uint8_t rep;
+            for (rep = 0; rep < max_reply; ) {
+                *reply++ = cmd;
+                rep++;
+
+                if (cmd == '\r') {
+                    *(--reply) = 0; //Terminate string
+                    rep--;
+                } else if (cmd == '\n' /*|| cmd == '\r'*/) {//End of message
+                    *(--reply) = 0; //Terminate string
+                    rep--;
+                    goto end_of_reply;
+                }
+
+                CLOCKTAMER_SELECT();
+                cmd = transferSPI(0xFF);
+                CLOCKTAMER_UNSELECT();
+                _delay_us(20);
+
+                if (cmd == 0xFF || cmd == 0) {
+                    for (j = 0; j < MAX_ITER_J; j++) {
+                        _delay_us(20);
+                        CLOCKTAMER_SELECT();
+                        cmd = transferSPI(0xFF);
+                        CLOCKTAMER_UNSELECT();
+                        if (cmd != 0xFF && cmd != 0x00)
+                            break;
+                    }
+                    if (j == MAX_ITER_J)
+                        goto reply_trunc;//end_of_reply;
+                }
+            }
+
+reply_trunc:
+            //Message truncated
+            *reply = 0xFF; //Message not end flag
+end_of_reply:
+            return rep;
+        }
+        CLOCKTAMER_UNSELECT();
+    }
+
+    CLOCKTAMER_UNSELECT();
+    return 0; //No message has been received
+}
+
 uint8_t clocktamer_sendcmd_p(const char* cmd_p, char* reply, uint8_t max_reply)
 {
     CLOCKTAMER_SELECT();
@@ -396,59 +461,7 @@ uint8_t clocktamer_sendcmd_p(const char* cmd_p, char* reply, uint8_t max_reply)
     transferSPI('\n');
     CLOCKTAMER_UNSELECT();
 
-    uint16_t i;
-    uint32_t j;
-#define MAX_ITER_J  600
-
-
-    // Wait for maximum of 0.5 sec
-    for (i = 0; i < 5000; i++) {
-        _delay_us(10);
-
-        CLOCKTAMER_SELECT();
-        cmd = transferSPI(0xFF);
-        CLOCKTAMER_UNSELECT();
-
-        _delay_us(90);
-
-        if (cmd != 0xFF && cmd != 0x00) {
-            //Start of reply
-            uint8_t rep;
-            for (rep = 1; rep < max_reply; rep++) {
-                *reply++ = cmd;
-
-                CLOCKTAMER_SELECT();
-                cmd = transferSPI(0xFF);
-                CLOCKTAMER_UNSELECT();
-                _delay_us(50);
-
-                if (cmd == '\n' || cmd == '\r') {//End of message
-                    *reply = 0; //Terminate string
-                    goto end_of_reply;
-                } else if (cmd == 0xFF || cmd == 0) {
-                    for (j = 0; j < MAX_ITER_J; j++) {
-                        _delay_us(50);
-                        CLOCKTAMER_SELECT();
-                        cmd = transferSPI(0xFF);
-                        CLOCKTAMER_UNSELECT();
-                        if (cmd != 0xFF && cmd != 0x00)
-                            break;
-                    }
-                    if (j == MAX_ITER_J)
-                        goto end_of_reply;
-                }
-            }
-
-end_of_reply:
-            //Message truncated
-
-            return rep;
-        }
-        CLOCKTAMER_UNSELECT();
-    }
-
-    CLOCKTAMER_UNSELECT();
-    return 0; //No message has been received
+    return clocktamer_get_replyln(reply, max_reply);
 }
 
 

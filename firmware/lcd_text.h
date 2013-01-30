@@ -16,5 +16,11 @@
  
  void LCDPuts_P(const char *p);
  
+ /**
+  * @brief LCDPutsBig Output long string (up to 64 bytes to screen)
+  * @param p string
+  * @return NULL if whole string has been displayed, otherwise pointer to remaining part
+  */
+ const char *LCDPutsBig(const char *p);
 
 #endif // LCD__TEXT_H

@@ -9,7 +9,27 @@
  */
 
 //BM00
-#define BLOCK_MAGIC    0x30304D42UL
+#define BLOCK_MAGIC                  0x30304D42UL
+#define MAX_FIRMWARE                 4
+
+
+#ifdef USE_EEPROM
+#define BLOCK_SIZE                   256
+#define TOTAL_MEM_SIZE               EEPROM_TOTAL_SIZE
+#else
+#define BLOCK_SIZE                   SPM_PAGESIZE
+#define TOTAL_MEM_SIZE               BOOTSPM_SIZE
+#endif
+
+
+
+#ifdef USE_EEPROM
+#define write_block_page(x,y,z)      eemem_write_page(x,y,z)
+#define read_block(x,y,z)            eemem_read_page(x,y,z)
+#else
+#define write_block_page(x,y,z)      SPMWritePage(x,y,z)
+#define read_block(x,y,z)            SPMRead(x,y,z)
+#endif
 
 /**
  * @brief The BlockHeader struct

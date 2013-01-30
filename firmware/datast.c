@@ -6,24 +6,14 @@
 #include "flashspm.h"
 #include "datast.h"
 
-#define MAX_FIRMWARE                 4
-
-#ifdef USE_EEPROM
-#define write_block_page(x,y,z)      eemem_write_page(x,y,z)
-#define read_block(x,y,z)            eemem_read_page(x,y,z)
-#define BLOCK_SIZE                   256
-#define TOTAL_MEM_SIZE               EEPROM_TOTAL_SIZE
-#else
-#define write_block_page(x,y,z)      SPMWritePage(x,y,z)
-#define read_block(x,y,z)            SPMRead(x,y,z)
-#define BLOCK_SIZE                   SPM_PAGESIZE
-#define TOTAL_MEM_SIZE               BOOTSPM_SIZE
-#endif
 
 
-static struct BlockHeader s_head;
-static struct FirmwareId  s_fwactive;
 
+//static struct BlockHeader s_head;
+//static struct FirmwareId  s_fwactive;
+
+struct BlockHeader s_head;
+struct FirmwareId  s_fwactive;
 
 void EDSInit(void)
 {
@@ -55,7 +45,7 @@ uint8_t EDSAppendFirmwareFromDevice(CALLBACK_FLASH_FN fn)
     if (s_head.freeOffset +
             AVRISP_MEGA32U2_FLASHSIZE +
             AVRISP_MEGA32U2_EESIZE +
-            sizeof(struct FirmwareId) > TOTAL_MEM_SIZE)
+            BLOCK_SIZE > TOTAL_MEM_SIZE)
         return AFE_NO_MEM;
 
     if (avrisp_enter() != 0)

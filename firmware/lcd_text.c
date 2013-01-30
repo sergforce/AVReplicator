@@ -146,6 +146,25 @@ void LCDSetPos(uint8_t row, uint8_t col)
 
 }
 
+const char* LCDPutsBig(const char *p)
+{
+    char c, i;
+    for(i=0; i < 64; i++) {
+        if ((i & 0x0f) == 0) {
+            LCDSetPos(i >> 4, 0);
+        }
+
+        c = *p++;
+        if (c) {
+            lcd_write_data(c);
+        } else {
+            return 0;
+        }
+    }
+
+    return p;
+}
+
 void LCDPuts(const char *p)
 {
     char c, i;
