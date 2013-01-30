@@ -18,7 +18,8 @@ struct FirmwareId  s_fwactive;
 void EDSInit(void)
 {
     read_block(0, (uint8_t*)&s_head, sizeof(s_head));
-    if (s_head.freeOffset > TOTAL_MEM_SIZE ||
+    if (s_head.freeOffset == 0 ||
+        s_head.freeOffset > TOTAL_MEM_SIZE ||
         s_head.magic != BLOCK_MAGIC) {
         // Incorrect data header, clear it
 

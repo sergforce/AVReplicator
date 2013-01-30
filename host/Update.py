@@ -100,7 +100,7 @@ class brfirmware:
 			wlen = usbdev.writeblock(fw_idx, self.fw_data[(fw_idx-1)*self.blocksize:(fw_idx-1)*self.blocksize+tmplen])
 			fw_len -= tmplen
 			fw_idx += int(math.ceil(float(tmplen) / self.blocksize))
-			#print "fw idx %d" % fw_idx
+			print "fw idx %d len %d => %d " % (fw_idx, tmplen, wlen)
 			
 		# send eeprom
 		ee_len = self.h_ee_size
@@ -110,10 +110,10 @@ class brfirmware:
 			wlen = usbdev.writeblock(ee_idx, self.ee_data[(ee_idx-fw_idx)*self.blocksize:(ee_idx-fw_idx)*self.blocksize+tmplen])
 			ee_len -= tmplen
 			ee_idx += int(math.ceil(float(tmplen) / self.blocksize))
-			#print "ee idx %d" % fw_idx
+			print "ee idx %d len %d => %d" % (ee_idx,  tmplen, wlen)
 			
 		# send flush command
-		usbdev.writeblock(0xffff, [])
+		usbdev.writeblock(0x0fff, [])
 		
 		
 	def writetofile(self, fwname="out.hex", eename="out.eep"):

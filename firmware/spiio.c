@@ -389,10 +389,10 @@ uint8_t clocktamer_get_replyln(char* reply, uint8_t max_reply)
     uint8_t cmd;
     uint16_t i;
     uint16_t j;
-#define MAX_ITER_J  600
+#define MAX_ITER_J  60000
 
     // Wait for maximum of 0.5 sec
-    for (i = 0; i < 5000; i++) {
+    for (i = 0; i < 50000; i++) {
         _delay_us(10);
 
         CLOCKTAMER_SELECT();

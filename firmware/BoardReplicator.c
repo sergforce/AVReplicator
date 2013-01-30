@@ -33,8 +33,8 @@ const char afe_ff[] PROGMEM     = "Failed fuses";
 
 const char afe_nofw[] PROGMEM   = "No firmwares";
 
-const char ct_ver[] PROGMEM = "HWI";
-//const char ct_ver[] PROGMEM = "SET,STS,AUT";
+//const char ct_ver[] PROGMEM = "HWI";
+const char ct_ver[] PROGMEM = "SET,STS,AUT";
 
 void DisplayError(uint8_t code)
 {
@@ -99,7 +99,7 @@ int main(void)
                char *pos = d;
                int8_t fl = 64;
 
-               for (k = 0; k < 3; k++) {
+               for (k = 0; k < 50; k++) {
                    len = clocktamer_get_replyln(pos, (uint8_t)fl);
                    if (len > 3) {
                        if (pos[len] == 0) {

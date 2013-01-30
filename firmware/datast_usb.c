@@ -139,13 +139,13 @@ void USBControlWriteFirmware(uint16_t idx)
 
     if (idx > 0) {
        //firmware has been accepted
-       addr = s_fwactive.offset + idx * BLOCK_SIZE;
+       addr = s_fwactive.offset + (idx) * BLOCK_SIZE;
     }
 
     if (!(length)) {
         Endpoint_ClearOUT();
 
-        if (idx == 0xffff) {
+        if (idx == 0x0fff) {
             // Write header
             write_block_page(s_fwactive.offset, (uint8_t*)&s_fwactive, sizeof(s_fwactive));
             uint8_t i;
@@ -153,7 +153,8 @@ void USBControlWriteFirmware(uint16_t idx)
                 if (s_head.firmwareOff[i] == 0) break;
             }
             s_head.firmwareOff[i] = s_fwactive.offset;
-
+            s_head.freeOffset += s_fwactive.eepromSize +
+                    s_fwactive.programSize + BLOCK_SIZE; // FIXME: Not aligned to block size
             // Update header block
             write_block_page(0, (uint8_t*)&s_head, sizeof(s_head));
         }
