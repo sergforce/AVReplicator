@@ -5,6 +5,7 @@ import array
 import struct
 import math
 from intelhex import IntelHex
+import argparse
 
 class usbdev:
 	def __init__(self):
@@ -145,20 +146,35 @@ class brfirmware:
 		self.ee_data = array.array('B', [ ihe[i] for i in xrange(self.h_ee_size) ])
 		
 		
-if __name__ == "__main__44":
-	fw = brfirmware()
-	fw.loadfromfile()
+def main():
+	parser = argparse.ArgumentParser(description='Update BoardReplicaot flashing firmwares')
+	parser.add_argument('-r', '--read', help='Read firmware form Boardreplicator', action='store_true')
+	parser.add_argument('-c', '--clear', help='Clear all firmwares on BoardReplicator', action='store_true')
+	parser.add_argument('-w', '--write', help='Append firmware', action='store_true')
+	args = parser.parse_args()
+
+	if ((not args.read) and (not args.clear) and (not args.write)):
+		parser.print_help()
 	
-	fw.writetousb(usbdev())
-	print fw
-	
-if __name__ == "__main__":
 	usb = usbdev()
-	fw = usb.loadfw()
+	if (args.read):
+		print "Reading firmware..."
+		usb.loadfw().writetofile()
+		print " ... done"
+		
+	if (args.clear):
+		print "Reset all firmwares..."
+		usb.clearall()
+		print " ... done"
 	
-	print fw
-	print fw.ee_data
+	if (args.write):
+		print "Downloading new firmware..."
+		fw = brfirmware()
+		fw.loadfromfile()
+		fw.writetousb(usb)
+		print " ... done"	
 	
-	fw.writetofile()
-	
+
+if __name__ == "__main__":
+	main()
 	
