@@ -12,7 +12,8 @@
 
 		#include <LUFA/Drivers/USB/USB.h>
 
-		void CDCHost_Task(void);
+        int16_t USB_ClockTamer_RecvLine(char* cmd, uint8_t max_reply);
+        int16_t USB_ClockTamer_Send(char* cmd, uint8_t max_reply);
 
 		void EVENT_USB_Host_HostError(const uint8_t ErrorCode);
 		void EVENT_USB_Host_DeviceAttached(void);

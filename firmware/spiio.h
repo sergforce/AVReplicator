@@ -118,6 +118,7 @@ void avrisp_write_fuse_ex(uint8_t fuse);
 
 
 
+uint8_t clocktamer_sendcmd(char* cmd, uint8_t max_reply);
 
 /**
  * @brief clocktamer_sendcmd_p Send command from FLASH to ClockTamer and store reply to RAM

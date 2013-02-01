@@ -464,5 +464,19 @@ uint8_t clocktamer_sendcmd_p(const char* cmd_p, char* reply, uint8_t max_reply)
     return clocktamer_get_replyln(reply, max_reply);
 }
 
+uint8_t clocktamer_sendcmd(char* cmd, uint8_t max_reply)
+{
+    CLOCKTAMER_SELECT();
+    char *iocmd = cmd;
+    char c;
+    while ((c = *(iocmd++))) {
+        transferSPI(c);
+        //_delay_us(100);
+    }
+    transferSPI('\n');
+    CLOCKTAMER_UNSELECT();
+
+    return clocktamer_get_replyln(cmd, max_reply);
+}
 
 
