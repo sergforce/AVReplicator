@@ -77,5 +77,12 @@ uint8_t CTLoadFromEEPROM(void);
 uint8_t CTGetOsc(uint32_t *posc);
 
 
+uint8_t CTSetLed(uint8_t led);
+
+
+char* CTVer(void);
+
+char* CTHwi(void);
+
 
 #endif // CTCONTROL_H

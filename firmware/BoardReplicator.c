@@ -9,6 +9,7 @@
 #include "datast.h"
 #include <PortConfig.h>
 #include "spiio.h"
+#include "ctcontrol.h"
 
 #include "datast_usb.h"
 
@@ -67,12 +68,14 @@ int main(void)
 
 	for (;;)
 	{	
+        USB_ExtraHost();
+
         USB_USBTask();
 
-		LED_PORT |= (1 << LED_3);
-        _delay_ms(10);
-		LED_PORT &= ~(1 << LED_3);
-        _delay_ms(10);
+        //LED_PORT |= (1 << LED_3);
+        //_delay_ms(10);
+        //LED_PORT &= ~(1 << LED_3);
+        //_delay_ms(10);
 
 
         CtrlUpdate();
@@ -84,6 +87,16 @@ int main(void)
         } else if (CtrlIsDownPressed()) {
             //startPos -= 0x10;
             //update = 1;
+
+            CTSetLed(0);
+
+
+            LCDClear();
+            char *pd = CTHwi();
+            if (pd) {
+                LCDPutsBig(pd);
+            }
+#if 0
             char d[65];
             uint8_t len = clocktamer_sendcmd_p(ct_ver, d, sizeof(d));
             if (len > 0) {
@@ -126,6 +139,7 @@ int main(void)
                    }
                }
             }
+#endif
         }
         if (CtrlIsOkPressed()) {
             LED_PORT ^= (1 << LED_4);
@@ -179,6 +193,10 @@ void SetupHardware(void)
     CtrlInit();
 
     SPIInit();
+
+    LMKInit();
+
+    CTInit(CTM_AUTO);
 
     EDSInit();
 	XMCRA = 0;

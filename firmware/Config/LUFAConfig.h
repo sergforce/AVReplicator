@@ -41,17 +41,17 @@
 //		#define USE_EEPROM_DESCRIPTORS
         #define NO_INTERNAL_SERIAL
         #define FIXED_CONTROL_ENDPOINT_SIZE      32
-		#define DEVICE_STATE_AS_GPIOR            0
+    ///	#define DEVICE_STATE_AS_GPIOR            0
 		#define FIXED_NUM_CONFIGURATIONS         1
-        #define CONTROL_ONLY_DEVICE
+   ///     #define CONTROL_ONLY_DEVICE
 //		#define INTERRUPT_CONTROL_ENDPOINT
-        #define NO_DEVICE_REMOTE_WAKEUP
+   ///     #define NO_DEVICE_REMOTE_WAKEUP
 //		#define NO_DEVICE_SELF_POWER
 
 		/* USB Host Mode Driver Related Tokens: */
 //		#define HOST_STATE_AS_GPIOR              {Insert Value Here}
-//		#define USB_HOST_TIMEOUT_MS              {Insert Value Here}
-//		#define HOST_DEVICE_SETTLE_DELAY_MS	     {Insert Value Here}
+        #define USB_HOST_TIMEOUT_MS              2000
+        #define HOST_DEVICE_SETTLE_DELAY_MS	     500
 //      #define NO_AUTO_VBUS_MANAGEMENT
 //      #define INVERTED_VBUS_ENABLE_LINE
 

@@ -23,6 +23,7 @@ const char g_ctc_ste[] PROGMEM = "STE";
 const char g_ctc_lde[] PROGMEM = "LDE";
 const char g_ctc_autotest[] PROGMEM = "SET,STS,AUT";
 
+const char g_ctc_pinled[] PROGMEM = "PIN,LED,";
 
 const char g_ctc_inf_osc[] PROGMEM = "INF,,OSC";
 
@@ -54,6 +55,7 @@ uint8_t ct_send_simple_cmd(void)
 
     return (g_len > 0) ? 0 : 1;
 }
+
 
 // Internal helper functions
 static void fillcmd_withvalue(const char* cmd, uint32_t value)
@@ -98,6 +100,17 @@ uint8_t CTInit(uint8_t mode)
     g_ct_mode = mode;
     return 0;
 }
+
+
+uint8_t CTSetLed(uint8_t led)
+{
+    fillcmd_withvalue(g_ctc_pinled, led);
+    if (ct_send_simple_cmd() == 0) {
+        return parse_simple_reply();
+    }
+    return CTR_IO_ERROR;
+}
+
 
 uint8_t CTSetOutput(uint32_t freq)
 {
@@ -153,5 +166,22 @@ uint8_t CTGetOsc(uint32_t *posc)
     return CTR_IO_ERROR;
 }
 
+char* CTVer(void)
+{
+    strcpy_PF(g_ctrecvbuffer, g_ctc_ver);
+    if (ct_send_simple_cmd() == 0) {
+        return g_ctrecvbuffer;
+    }
+    return 0;
+}
+
+char* CTHwi(void)
+{
+    strcpy_PF(g_ctrecvbuffer, g_ctc_hwi);
+    if (ct_send_simple_cmd() == 0) {
+        return g_ctrecvbuffer;
+    }
+    return 0;
+}
 
 
