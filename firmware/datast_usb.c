@@ -138,8 +138,11 @@ void USBControlWriteFirmware(uint16_t idx)
     uint32_t addr;
 
     if (idx > 0) {
-       //firmware has been accepted
-       addr = s_fwactive.offset + (idx) * BLOCK_SIZE;
+        //firmware has been accepted
+        addr = s_fwactive.offset + (idx) * BLOCK_SIZE;
+    } else {
+        // Determine start address after first block
+        addr = 0;
     }
 
     if (!(length)) {
@@ -184,15 +187,16 @@ void USBControlWriteFirmware(uint16_t idx)
                 if (tmpptr == tmpblk + BLOCK_SIZE) {
                     tmpptr = tmpblk;
                     // Process new block
+
                     if (addr == 0) {
                         //Pprocess header
                         addr = CheckNewFirmware(tmpblk);
                         if (addr == 0) {
                             goto transfer_error;
                         }
-                    } else {
-                        write_block_page(addr, tmpblk, BLOCK_SIZE);
                     }
+
+                    write_block_page(addr, tmpblk, BLOCK_SIZE);
                     addr += BLOCK_SIZE;
                 }
             }
