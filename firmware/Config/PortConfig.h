@@ -65,6 +65,14 @@
         #define CTRL_BTOK   PD2
         #define CTRL_BTBACK PD3
 
+        // Microware
+        #define MW_DDR           DDRF
+        #define MW_PORT          PORTF
+        #define MW_CLK           PF0
+        #define MW_DATA          PF1
+        #define MW_LE_LMK0X0XX   PF2
+        #define MW_LMKGOE        PF3
+
 
 	#else
 
