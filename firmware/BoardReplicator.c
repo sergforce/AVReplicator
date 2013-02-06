@@ -13,6 +13,8 @@
 
 #include "datast_usb.h"
 
+#include "ui_text.h"
+
 /** Main program entry point. This routine contains the overall program flow, including initial
  *  setup of all components and the main program loop.
  */
@@ -66,7 +68,18 @@ int main(void)
 
     uint8_t startPos = 0;
 
-	for (;;)
+
+    UIStart();
+
+    for (;;)
+    {
+        USB_ExtraHost();
+        USB_USBTask();
+        UITask();
+    }
+
+#ifdef OLD_CODE
+    for (;;)
 	{	
         USB_ExtraHost();
 
@@ -173,6 +186,7 @@ int main(void)
             }
         }
 	}
+#endif
 }
 
 /** Configures the board hardware and chip peripherals for the demo's functionality. */

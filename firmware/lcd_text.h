@@ -23,4 +23,7 @@
   */
  const char *LCDPutsBig(const char *p);
 
+ void LCDPutChar(char c);
+
+
 #endif // LCD__TEXT_H

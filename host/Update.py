@@ -85,6 +85,9 @@ class brfirmware:
 		
 		self.ee_data = ar
 		
+		print self.h_fw_size
+		print "FW Size: %d  EE Size: %d  Fuses %02x:%02x:%02x  Lock %02x" % (self.h_fw_size, self.h_ee_size, self.h_f, self.h_fh, self.h_fe, self.h_lock)
+		
 	def writetousb(self, usbdev):
 		hbuf = array.array('B', [ 0xff ] * self.blocksize)
 		struct.pack_into("<I16sHHBBBBB", hbuf, 0, self.h_off,self.h_name,self.h_fw_size,self.h_ee_size,self.h_flags,self.h_lock,self.h_f,self.h_fh,self.h_fe)
@@ -127,7 +130,11 @@ class brfirmware:
 		for x in xrange(len(self.ee_data)): ihe[x] = self.ee_data[x] 
 		ihe.write_hex_file(eename)
 		
+		print "Name: %s FW Size: %d  EE Size: %d  Fuses %02x:%02x:%02x  Lock %02x" % (self.h_name, self.h_fw_size, self.h_ee_size, self.h_f, self.h_fh, self.h_fe, self.h_lock)
+		
 	def loadfromfile(self, fwname="Tamer.hex", eename="Tamer.eep", name="clocktamer", fuses="5e:d8:f4"):
+
+#	def loadfromfile(self, fwname="Tamer.hex", eename="Tamer.eep", name="clocktamer", fuses="5e:d9:f4"):
 		ih = IntelHex(fwname)
 		ihe = IntelHex(eename)
 		
