@@ -18,10 +18,11 @@
  
  /**
   * @brief LCDPutsBig Output long string (up to 64 bytes to screen)
-  * @param p string
+  * @param p string in RAM
+  * @param start_row which row to start message
   * @return NULL if whole string has been displayed, otherwise pointer to remaining part
   */
- const char *LCDPutsBig(const char *p);
+ const char *LCDPutsBig(const char *p, uint8_t start_row);
 
  void LCDPutChar(char c);
 

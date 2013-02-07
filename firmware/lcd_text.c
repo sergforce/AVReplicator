@@ -152,12 +152,12 @@ void LCDPutChar(char c)
 }
 
 
-const char* LCDPutsBig(const char *p)
+const char* LCDPutsBig(const char *p, uint8_t start_row)
 {
     char c, i;
     for(i=0; i < 64; i++) {
         if ((i & 0x0f) == 0) {
-            LCDSetPos(i >> 4, 0);
+            LCDSetPos(((i >> 4) + start_row) & 0x3, 0);
         }
 
         c = *p++;
