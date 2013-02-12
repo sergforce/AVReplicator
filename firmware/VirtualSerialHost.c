@@ -74,7 +74,7 @@ void USB_ExtraHost(void)
 
 int16_t USB_ClockTamer_RecvLine(char* cmd, uint8_t max_reply)
 {
-    uint16_t timeout = 300000; // 3 sec
+    uint32_t timeout = 300000; // 3 sec
     char* start_ptr = cmd;
 
     while (max_reply > 0 && timeout > 0) {

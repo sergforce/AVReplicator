@@ -3,7 +3,9 @@
 #include "freqmes.h"
 #include "lmk0x0xx.h"
 
-#define BIND static
+#include <util/atomic.h>
+
+#define BIND
 #include "uint64_ops.h"
 
 
@@ -19,11 +21,12 @@ static uint8_t measures;
 ISR(TIMER3_OVF_vect, ISR_BLOCK)
 {
     // Self clock timer
-    uint8_t b;
+    // uint8_t b;
     //uint32_t a = TCNT1;
     //a |= (uint32_t)CounterHValue << 16;
 
     union {
+        uint8_t  u8[4];
         uint16_t u16[2];
         uint32_t u32;
     } a;
@@ -35,6 +38,9 @@ ISR(TIMER3_OVF_vect, ISR_BLOCK)
  //   if ((TIFR1 & (1<< TOV1)) && ((b & 0xf0) == 0)) {
  //       a += 0x10000;
  //   }
+    if ((TIFR1 & (1<< TOV1)) && ((a.u8[1] & 0xf0) == 0) ) {
+        ++a.u16[1];
+    }
     counted_prev = counted;
     counted = a.u32;
     //counted = counted_prev;
@@ -49,18 +55,24 @@ ISR(TIMER1_OVF_vect, ISR_BLOCK)
 
 uint32_t FreqGetTicks(void)
 {
-    cli();
-    uint32_t val = counted - counted_prev;
-    sei();
+    uint32_t val;
+    ATOMIC_BLOCK(ATOMIC_FORCEON) { val = (counted - counted_prev); }
     return val;
 }
+
+
 
 uint8_t FreqGetMes(void)
 {
     return measures;
 }
 
-uint64_t FreqCalculate(uint32_t counted, uint8_t div)
+uint32_t FreqCalculate(uint32_t counted, uint8_t div)
+{
+    return FreqCalculate64(counted, div);
+}
+
+uint64_t FreqCalculate64(uint64_t counted, uint8_t div)
 {
 #define COUNTER_BITS  16
     uint8_t fmt_bits;
@@ -68,7 +80,7 @@ uint64_t FreqCalculate(uint32_t counted, uint8_t div)
         //type = FMT_COARSE;
         //fmt_div = 64;
         fmt_bits = COUNTER_BITS + 6;
-    } else if ((TCCR3B & ((1 << CS32))) == ((1 << CS32))) {
+    } else if ((TCCR3B & ((1 << CS32) | (1 << CS30))) == ((1 << CS32))) {
         //type = FMT_NORMAL;
         //fmt_div = 256;
         fmt_bits = COUNTER_BITS + 8;
@@ -112,6 +124,9 @@ void FreqStartMeasure(uint8_t type)
 
 void FreqStopMeasure(void)
 {
+    TIMSK1 = 0;
+    TIMSK3 = 0;
+
     TCCR3B = 0;
     TCCR1B = 0;
 }

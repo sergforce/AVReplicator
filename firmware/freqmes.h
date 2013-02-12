@@ -16,7 +16,9 @@ void FreqStopMeasure(void);
 
 uint32_t FreqGetTicks(void);
 
-uint64_t FreqCalculate(uint32_t counted, uint8_t div);
+uint32_t FreqCalculate(uint32_t counted, uint8_t div);
+
+uint64_t FreqCalculate64(uint64_t counted, uint8_t div);
 
 uint8_t FreqGetMes(void);
 

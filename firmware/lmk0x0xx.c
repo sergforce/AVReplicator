@@ -4,6 +4,14 @@
 #include <PortConfig.h>
 #include "lmk0x0xx.h"
 
+
+#define LMK0X0XX_WRITE(x)  write_reg_LMK0X0XX( \
+  (uint8_t)((x) >> 24), \
+  (uint8_t)((x) >> 16), \
+  (uint8_t)((x) >> 8), \
+  (uint8_t)((x)))
+
+
 static void MicrowireLatchLMK0X0XX()
 {
     MW_PORT |= (1 << MW_LE_LMK0X0XX);
@@ -69,6 +77,10 @@ void LMKSetInput(uint8_t no)
 void LMKSetDiv(uint8_t div)
 {
     write_reg_LMK0X0XX(MAKE_LMK_HH(), MAKE_LMK_HL( ((div > 0) ? 1 : 0), 1), MAKE_LMK_LH(div), MAKE_LMK_LL(0, 0));
+
+    //////////////////////////////////
+    LMK0X0XX_WRITE(0x00022A09);
+    LMKSetInput(0); // defauts to output 0
 }
 
 void LMKEnable(uint8_t en)

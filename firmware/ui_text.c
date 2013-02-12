@@ -5,6 +5,8 @@
 #include "lmk0x0xx.h"
 #include "freqmes.h"
 
+#include "uint64_ops.h"
+
 #define LCD_HEIGHT   4
 #define LCD_WIDTH   16
 
@@ -25,7 +27,7 @@ struct WidgetEvents {
 };
 struct WidgetData {
     void *pointer;
-    uint8_t data[8];
+    uint8_t data[18];
 };
 
 
@@ -198,19 +200,24 @@ struct MainMenu {
 
 void OnInfo(void)
 {
+    char err = ' ';
+    uint8_t no = 0;
     LCDClear();
-    if (!CTSetLed(1)) {
+    if ((no = CTSetLed(1))) {
+        err = 'L';
         goto io_error;
     }
 
     char *pd = CTHwi();
     if (!pd) {
+        err = 'H';
         goto io_error;
     }
 
     LCDPutsBig(pd, 0);
     pd = CTVer();
     if (!pd) {
+        err = 'V';
         goto io_error;
     }
     LCDPutsBig(pd, 2);
@@ -219,7 +226,9 @@ void OnInfo(void)
 
 io_error:
     LCDSetPos(3,0);
-    LCDPuts_P(PSTR("IO Error"));
+    LCDPuts_P(PSTR("IO Error: "));
+    LCDPutChar(err);
+    LCDPutChar('0' + no);
     UI_WaitForOk_Enter();
 }
 
@@ -239,9 +248,12 @@ void OnProgram(void)
 }
 
 
-#define FM_PREV   2
-#define FM_DIV    (FM_PREV + 4)
-#define FM_MES    (FM_DIV + 1)
+#define FM_PREV        2
+#define FM_DIV        (FM_PREV + 4)
+#define FM_MES        (FM_DIV + 1)
+#define FM_MODE_CNT   (FM_MES + 1)
+#define FM_AVG_VALUE  (FM_MODE_CNT + 1)
+#define FM_AVG_COUNT  (FM_AVG_VALUE + 1)
 
 void LCD_PrintFreq(uint32_t freq)
 {
@@ -271,6 +283,58 @@ void LCD_PrintFreq(uint32_t freq)
     }
 }
 
+void LCD_PrintU16(uint16_t val)
+{
+    uint16_t start = 10000;
+    uint8_t started = 0;
+
+    while (start > 0) {
+        uint8_t digit = val / start;
+        if (!started && digit > 0) {
+            started = 1;
+        }
+        if (started) {
+            LCDPutChar('0' + digit);
+        }
+
+        val -= start * digit;
+        start /= 10;
+    }
+    if (!started) {
+        LCDPutChar('0');
+    }
+}
+
+static void FrequencyMeterReset(void)
+{
+    FreqStopMeasure();
+    LMKSetDiv(active_widget_data.data[FM_DIV]);
+    active_widget_data.data[FM_MES] = 0;
+    *((uint32_t*)&active_widget_data.data[FM_PREV]) = 0;
+    active_widget_data.data[FM_AVG_COUNT] = 0;
+    *((uint64_t*)&active_widget_data.data[FM_AVG_VALUE]) = 0;
+    FreqStartMeasure(active_widget_data.data[FM_MODE_CNT]);
+}
+
+uint8_t FreqLogAvg(uint8_t val)
+{
+    uint8_t i = 8;
+    for (;val !=0; val <<= 1, --i) {
+        if (val & 0x80)
+            return i;
+    }
+    return i;
+}
+
+static inline uint64_t uint64_shiftr_round (uint64_t v, uint8_t count)
+{
+    v = uint64_shiftr(v, count - 1);
+    if (v & 1) {
+        v++;
+    }
+    return uint64_sr(v);
+}
+
 void TASK_FrequencyMeter(void)
 {
     uint8_t mes = FreqGetMes();
@@ -296,7 +360,6 @@ void TASK_FrequencyMeter(void)
     int32_t delta = cur - prev;
     *((uint32_t*)&active_widget_data.data[FM_PREV]) = cur;
 
-
     //Show new value
     uint32_t freq = FreqCalculate(cur, active_widget_data.data[FM_DIV]);
     //LCDClear();
@@ -314,8 +377,94 @@ void TASK_FrequencyMeter(void)
     } else {
         LCDPutChar(' ');
     }
-    freq = FreqCalculate((uint32_t)delta, active_widget_data.data[FM_DIV]);
-    LCD_PrintFreq(freq);
+    uint32_t dfreq = FreqCalculate((uint32_t)delta, active_widget_data.data[FM_DIV]);
+    LCD_PrintFreq(dfreq);
+
+    if (active_widget_data.data[FM_MES] < 2)
+        return;
+
+    // Check for change DIV
+    uint16_t p = (freq >> 21);  // 2mhz
+    /*if (p == 0) {
+        ++p;
+    } else */
+    if (p > 255) {
+        p = 255;
+    }
+
+    if ((p < active_widget_data.data[FM_DIV] - 1) &&
+            (p != active_widget_data.data[FM_DIV])) {
+        goto __update_counter;
+    } else if (p > active_widget_data.data[FM_DIV]) {
+        goto __update_counter;
+    }
+#if 0
+    // Calculate average value
+    if ((uint32_t)delta < *((uint32_t*)&active_widget_data.data[FM_PREV]) >> 10) {
+        uint8_t bits = FreqLogAvg(p);
+        if (active_widget_data.data[FM_AVG_COUNT] == 0) {
+            active_widget_data.data[FM_AVG_COUNT]++;
+
+            *((uint64_t*)&active_widget_data.data[FM_AVG_VALUE]) =
+                    uint64_shiftl(cur, bits);
+
+            LCDSetPos(3,8);
+            LCDPuts_P(PSTR("AD:"));
+            LCD_PrintU16(bits);
+
+        } else if (bits > 0) {
+            if (active_widget_data.data[FM_AVG_COUNT] < 255)  {
+                active_widget_data.data[FM_AVG_COUNT]++;
+            }
+
+            *((uint64_t*)&active_widget_data.data[FM_AVG_VALUE]) =
+                    *((uint64_t*)&active_widget_data.data[FM_AVG_VALUE]) -
+                    uint64_shiftr_round(*((uint64_t*)&active_widget_data.data[FM_AVG_VALUE]), bits)
+                    //uint64_mul32(uint64_shiftr(*((uint64_t*)&active_widget_data.data[FM_AVG_VALUE]), bits),
+                    //              ((uint16_t)1 << bits) - 1)
+                    //uint64_shiftr(uint64_mul32(*((uint64_t*)&active_widget_data.data[FM_AVG_VALUE]),
+                    //              ((uint16_t)1 << bits) - 1), bits)
+                    + cur;
+
+
+            freq = uint64_shiftr(FreqCalculate64(
+                                    *((uint64_t*)&active_widget_data.data[FM_AVG_VALUE]),
+                                    active_widget_data.data[FM_DIV]),
+                                 bits);
+            LCDSetPos(0,0);
+            LCDPutChar('A');
+
+            LCD_PrintFreq(freq);
+
+        }
+    } else {
+        LCDSetPos(0,0);
+        LCDPuts_P(PSTR("--------------  "));
+
+        active_widget_data.data[FM_AVG_COUNT] = 0;
+    }
+#endif
+    return;
+__update_counter:
+    LCDSetPos(3,0);
+    LCDPuts_P(PSTR("DIV:   "));
+    LCDSetPos(3,4);
+    LCD_PrintU16(p);
+
+    active_widget_data.data[FM_DIV] = p;
+    FrequencyMeterReset();
+
+    LCDSetPos(0,0);
+    LCDPuts_P(PSTR("--------------  "));
+   /* FreqStopMeasure();
+
+    LMKSetDiv(p);
+    active_widget_data.data[FM_DIV] = p;
+    active_widget_data.data[FM_MES] = 0;
+    *((uint32_t*)&active_widget_data.data[FM_PREV]) = 0;
+
+    FreqStartMeasure(active_widget_data.data[FM_MODE_CNT]);
+    */
 }
 
 void BACK_FrequencyMeter(void)
@@ -326,12 +475,39 @@ void BACK_FrequencyMeter(void)
     UI_WaitForOk_EventBack();
 }
 
+void UP_FrequencyMeter(void)
+{
+    if (active_widget_data.data[FM_MODE_CNT] < FMT_PRECISE) {
+        ++active_widget_data.data[FM_MODE_CNT];
+        FrequencyMeterReset();
+        /*
+        FreqStopMeasure();
+        active_widget_data.data[FM_MES] = 0;
+        FreqStartMeasure(active_widget_data.data[FM_MODE_CNT]);
+        *((uint32_t*)&active_widget_data.data[FM_PREV]) = 0;
+        */
+    }
+}
+void DOWN_FrequencyMeter(void)
+{
+    if (active_widget_data.data[FM_MODE_CNT] > FMT_COARSE) {
+        --active_widget_data.data[FM_MODE_CNT];
+        FrequencyMeterReset();
+        /*
+        FreqStopMeasure();
+        active_widget_data.data[FM_MES] = 0;
+        FreqStartMeasure(active_widget_data.data[FM_MODE_CNT]);
+        *((uint32_t*)&active_widget_data.data[FM_PREV]) = 0;
+        */
+    }
+}
+
 void OnFrequencyMeter(void)
 {
     active_widget.on_back = BACK_FrequencyMeter;
     active_widget.on_ok   = BACK_FrequencyMeter;
-    active_widget.on_up   = 0;
-    active_widget.on_down = 0;
+    active_widget.on_up   = UP_FrequencyMeter;
+    active_widget.on_down = DOWN_FrequencyMeter;
     active_widget.on_spin_up   = 0;
     active_widget.on_spin_down = 0;
     active_widget.on_spin_push = BACK_FrequencyMeter;
@@ -343,19 +519,80 @@ void OnFrequencyMeter(void)
 
     LMKEnable(1);
     //LMKSetInput(0);
-
-    *((uint32_t*)&active_widget_data.data[FM_PREV]) = 0;
+    //active_widget_data.data[FM_MES] = 0;
+    active_widget_data.data[FM_MODE_CNT] = FMT_NORMAL;
     active_widget_data.data[FM_DIV] = 255;
-    LMKSetDiv(active_widget_data.data[FM_DIV]); //The most available divider
 
-    active_widget_data.data[FM_MES] = 0;
-    FreqStartMeasure(FMT_NORMAL);
+    //*((uint32_t*)&active_widget_data.data[FM_PREV]) = 0;
+    //LMKSetDiv(active_widget_data.data[FM_DIV]); //The most available divider
+    //FreqStartMeasure(active_widget_data.data[FM_MODE_CNT]);
+
+    FrequencyMeterReset();
+}
+
+//////////////////////////////////////////////////////////////////////////
+// UI Test Menu
+void CALLBACK_CTOnSelfTestEvent(uint8_t type, uint32_t value, uint8_t res)
+{
+    switch (type) {
+    case SFT_PIN_LOCK:
+        LCDSetPos(3, 0);
+        LCDPutChar('P');
+        LCDPutChar(' ');
+        goto print_status;
+        break;
+    case SFT_SET_FREQ:
+        LCDSetPos(2, 0);
+        LCDPuts_P(PSTR("C-------------"));
+        LCDSetPos(1, 0);
+        LCDPutChar('F');
+        LCD_PrintFreq(value);
+        goto print_status;
+        break;
+    case SFT_COUNTED:
+        LCDSetPos(2, 1);
+        LCD_PrintFreq(value);
+
+print_status:
+        if (res == CTR_OK) {
+            LCDPutChar('O'); LCDPutChar('K');
+        } else if (res == CTR_FAILED){
+            LCDPutChar('#'); LCDPutChar('#');
+        } else {
+            LCDPutChar('?'); LCDPutChar('?');
+        }
+        break;
+
+    }
+}
+
+extern char g_ctrecvbuffer[];
+void OnTest(void)
+{
+    LCDClear();
+
+    uint8_t res = CTSelfTest(CALLBACK_CTOnSelfTestEvent);
+    LCDSetPos(3, 0);
+    if (res == CTR_FAILED) {
+        LCDPuts_P(PSTR("SELF FAILED"));
+    } else if (res == CTR_OK) {
+        LCDPuts_P(PSTR("*SELF PASSED*"));
+    } else if (res == CTR_IO_ERROR) {
+        LCDPuts_P(PSTR("IO ERROR"));
+    } else {
+        LCDPuts_P(PSTR("UNKNOWN ERROR: "));
+        LCDPutChar('0' + res);
+
+        LCDPutsBig(g_ctrecvbuffer, 0);
+    }
+
+    UI_WaitForOk_Enter();
 }
 
 static struct MainMenu sp_main_menu PROGMEM = {
     .menu = { .items = 4, .def_item = 0, .on_back = 0 },
     .it_program = { .Text = "Program",    .on_event = OnProgram},
-    .it_test    = { .Text = "Test",       .on_event = 0},
+    .it_test    = { .Text = "Test",       .on_event = OnTest},
     .it_version = { .Text = "Info",       .on_event = OnInfo},
     .it_freqtest= { .Text = "Freq Meter", .on_event = OnFrequencyMeter},
     .it_ctboard = { .Text = "CT Board",   .on_event = 0}

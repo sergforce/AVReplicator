@@ -85,4 +85,17 @@ char* CTVer(void);
 char* CTHwi(void);
 
 
+typedef enum tagSFTCmdType {
+    SFT_ERROR,
+    SFT_UNKNOWN,
+    SFT_PIN_LOCK,
+    SFT_SET_FREQ,
+    SFT_COUNTED,
+    SFT_END
+} SFTCmdType;
+
+typedef  void (*CTOnSelfTestEvent)(uint8_t type, uint32_t value, uint8_t res);
+
+uint8_t CTSelfTest(CTOnSelfTestEvent event);
+
 #endif // CTCONTROL_H
