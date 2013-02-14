@@ -6,6 +6,8 @@
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 
+#include <PortConfig.h>
+
 #define MAX_STRING_LEN   64
 
 
@@ -123,6 +125,24 @@ static uint8_t parse_info_reply(const char* cmd, uint32_t *pvalue)
 }
 
 // API functions
+void CTPower(uint8_t cmt_mask)
+{
+    CT_DDR |= 1 << CT_POWER;
+    USBV_DDR |= 1 << USBV_P;
+
+    if ((cmt_mask & (1 << CTM_SPI))) {
+        CT_PORT |= (1 << CT_POWER);
+    } else {
+        CT_PORT &= ~(1 << CT_POWER);
+    }
+
+    if ((cmt_mask & (1 << CTM_USB))) {
+        USBV_PORT |= (1 << USBV_P);
+    } else {
+        USBV_PORT &= ~(1 << USBV_P);
+    }
+}
+
 uint8_t CTInit(uint8_t mode)
 {
     g_ct_mode = mode;
@@ -247,7 +267,7 @@ static uint8_t ct_selftest_get_status(uint8_t off)
 // MAX x`xxx`xxx`xxx
 #define UINT32_STR_SIZE  10
 
-uint8_t CTSelfTest(CTOnSelfTestEvent event)
+uint16_t CTSelfTest(CTOnSelfTestEvent event)
 {
     strcpy_PF(g_ctrecvbuffer, g_ctc_autotest);
     if (ct_send_simple_cmd() != 0) {
@@ -265,7 +285,7 @@ uint8_t CTSelfTest(CTOnSelfTestEvent event)
         case SFT_END:
             value = atol(g_ctrecvbuffer + sizeof(g_selftest) - 1);
             if (value > 0) {
-                return CTR_FAILED;
+                return CTR_FAILED | (value << 8);
             } else {
                 return CTR_OK;
             }

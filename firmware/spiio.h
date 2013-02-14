@@ -114,8 +114,9 @@ void avrisp_write_fuse_ex(uint8_t fuse);
 
 
 
-
-
+void clocktamer_reset(void);
+void clocktamer_dfubit_set(void);
+void clocktamer_dfubit_clear(void);
 
 
 uint8_t clocktamer_sendcmd(char* cmd, uint8_t max_reply);

@@ -25,6 +25,12 @@ enum CTMode {
 };
 
 /**
+ * @brief CTPower Turn on/off power by specific source
+ * @param cmt_mask checking for 1<<CTM_SPI and 1<<CTM_USB mask
+ */
+void CTPower(uint8_t cmt_mask);
+
+/**
  * @brief CTInit Initialize communication channel to ClockTamer
  * @param mode type of @ref CTMode
  * @return return type @ref CTResult
@@ -96,6 +102,6 @@ typedef enum tagSFTCmdType {
 
 typedef  void (*CTOnSelfTestEvent)(uint8_t type, uint32_t value, uint8_t res);
 
-uint8_t CTSelfTest(CTOnSelfTestEvent event);
+uint16_t CTSelfTest(CTOnSelfTestEvent event);
 
 #endif // CTCONTROL_H

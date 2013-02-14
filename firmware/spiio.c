@@ -479,4 +479,21 @@ uint8_t clocktamer_sendcmd(char* cmd, uint8_t max_reply)
     return clocktamer_get_replyln(cmd, max_reply);
 }
 
+void clocktamer_reset(void)
+{
+    AVRSPI_RESET_DOWN();
+    _delay_ms(250);
+    AVRSPI_RESET_UP();
+}
+
+void clocktamer_dfubit_set(void)
+{
+    CTS_PORT &= ~(1 << CTS_CS);
+}
+
+void clocktamer_dfubit_clear(void)
+{
+    CTS_PORT |= (1 << CTS_CS);
+}
+
 

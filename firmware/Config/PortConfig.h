@@ -29,6 +29,10 @@
         #define CT_POWER  PC6
         #define CT_RESET  PC5
 
+        #define USBV_DDR  DDRE
+        #define USBV_PORT PORTE
+        #define USBV_P    PE7
+
         // Generic SPI
         #define SPI_DDR   DDRB
         #define SPI_MOSI  PB2

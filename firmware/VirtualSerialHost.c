@@ -29,44 +29,6 @@ USB_ClassInfo_CDC_Host_t VirtualSerial_CDC_Interface =
 			},
 	};
 
-#if 0
-int main(void)
-{
-	SetupHardware();
-
-	puts_P(PSTR(ESC_FG_CYAN "CDC Host Demo running.\r\n" ESC_FG_WHITE));
-
-	LEDs_SetAllLEDs(LEDMASK_USB_NOTREADY);
-	sei();
-
-	for (;;)
-	{
-		CDCHost_Task();
-
-		CDC_Host_USBTask(&VirtualSerial_CDC_Interface);
-		USB_USBTask();
-	}
-}
-
-/** Task to manage an enumerated USB CDC device once connected, to print received data
- *  from the device to the serial port.
- */
-void CDCHost_Task(void)
-{
-	if (USB_HostState != HOST_STATE_Configured)
-	  return;
-
-	if (CDC_Host_BytesReceived(&VirtualSerial_CDC_Interface))
-	{
-		/* Echo received bytes from the attached device through the USART */
-		int16_t ReceivedByte = CDC_Host_ReceiveByte(&VirtualSerial_CDC_Interface);
-		if (!(ReceivedByte < 0))
-		  putchar(ReceivedByte);
-	}
-}
-
-#endif
-
 void USB_ExtraHost(void)
 {
     CDC_Host_USBTask(&VirtualSerial_CDC_Interface);
@@ -130,7 +92,7 @@ void EVENT_USB_Host_DeviceAttached(void)
 {
     //puts_P(PSTR("Device Attached.\r\n"));
     //LEDs_SetAllLEDs(LEDMASK_USB_ENUMERATING);
-    LCDPuts_P(PSTR("HostAttached"));
+    //LCDPuts_P(PSTR("HostAttached"));
     LED_PORT |= (1 << LED_3);
 }
 
@@ -144,13 +106,15 @@ void EVENT_USB_Host_DeviceUnattached(void)
     LED_PORT &= ~(1 << LED_3);
 }
 
+volatile uint8_t USBCommState;
+
 /** Event handler for the USB_DeviceEnumerationComplete event. This indicates that a device has been successfully
  *  enumerated by the host and is now ready to be used by the application.
  */
 void EVENT_USB_Host_DeviceEnumerationComplete(void)
 {
     //LEDs_SetAllLEDs(LEDMASK_USB_ENUMERATING);
-    LCDPuts_P(PSTR("0"));
+    //LCDPuts_P(PSTR("0"));
 
 	uint16_t ConfigDescriptorSize;
 	uint8_t  ConfigDescriptorData[512];
@@ -160,26 +124,36 @@ void EVENT_USB_Host_DeviceEnumerationComplete(void)
 	{
         //puts_P(PSTR("Error Retrieving Configuration Descriptor.\r\n"));
         //LEDs_SetAllLEDs(LEDMASK_USB_ERROR);
-        LCDPuts_P(PSTR("ErrorConfDiscr"));
+        //LCDPuts_P(PSTR("ErrorConfDiscr"));
+        USBCommState = USBH_ERR_CONF_DISCRIPTOR;
 		return;
 	}
 
+    if (USBCommState != USBH_MODE_DFU) {
 	if (CDC_Host_ConfigurePipes(&VirtualSerial_CDC_Interface,
 	                            ConfigDescriptorSize, ConfigDescriptorData) != CDC_ENUMERROR_NoError)
 	{
         //puts_P(PSTR("Attached Device Not a Valid CDC Class Device.\r\n"));
         //LEDs_SetAllLEDs(LEDMASK_USB_ERROR);
-        LCDPuts_P(PSTR("ErrorCPipes"));
+        //LCDPuts_P(PSTR("ErrorCPipes"));
+        USBCommState = USBH_ERR_CONF_PIPES;
 		return;
 	}
+    }
 
 	if (USB_Host_SetDeviceConfiguration(1) != HOST_SENDCONTROL_Successful)
 	{
         //puts_P(PSTR("Error Setting Device Configuration.\r\n"));
         //LEDs_SetAllLEDs(LEDMASK_USB_ERROR);
-        LCDPuts_P(PSTR("ErrorSetConf"));
+        //LCDPuts_P(PSTR("ErrorSetConf"));
+        USBCommState = USBH_ERR_CONF_DEVICE;
 		return;
 	}
+
+    if (USBCommState == USBH_MODE_DFU) {
+        USBCommState = USBH_CONFIGURED_DFU;
+        return;
+    }
 
 	VirtualSerial_CDC_Interface.State.LineEncoding.BaudRateBPS = 9600;
 	VirtualSerial_CDC_Interface.State.LineEncoding.CharFormat  = CDC_LINEENCODING_OneStopBit;
@@ -190,25 +164,33 @@ void EVENT_USB_Host_DeviceEnumerationComplete(void)
 	{
         //puts_P(PSTR("Error Setting Device Line Encoding.\r\n"));
         //LEDs_SetAllLEDs(LEDMASK_USB_ERROR);
-        LCDPuts_P(PSTR("ErrorSetLine"));
+        //LCDPuts_P(PSTR("ErrorSetLine"));
+        USBCommState = USBH_ERR_CDC_SETLINE;
 		return;	
 	}
 
-    LCDPuts_P(PSTR("Enumerated"));
+    USBCommState = USBH_CONFIGURED_CDC;
+//    LCDPuts_P(PSTR("Enumerated"));
 //	puts_P(PSTR("CDC Device Enumerated.\r\n"));
 //	LEDs_SetAllLEDs(LEDMASK_USB_READY);
 }
 
+void LCD_PrintU16(uint16_t val);
 /** Event handler for the USB_HostError event. This indicates that a hardware error occurred while in host mode. */
 void EVENT_USB_Host_HostError(const uint8_t ErrorCode)
 {
 	USB_Disable();
-    LCDPuts_P(PSTR("Host Error"));
+    LCDClear();
+    LCDSetPos(0,0);
+    LCDPuts_P(PSTR("Host Mode Error!"));
+    LCDSetPos(1,0);
+    LCDPuts_P(PSTR("Unattach device"));
+    LCDSetPos(2,0);
+    LCDPuts_P(PSTR(" and reset the "));
+    LCDSetPos(3,0);
+    LCDPuts_P(PSTR("board.HALTED"));
+    LCD_PrintU16(ErrorCode);
 
-//	printf_P(PSTR(ESC_FG_RED "Host Mode Error\r\n"
-//	                         " -- Error Code %d\r\n" ESC_FG_WHITE), ErrorCode);
-
-//	LEDs_SetAllLEDs(LEDMASK_USB_ERROR);
 	for(;;);
 }
 
@@ -225,6 +207,7 @@ void EVENT_USB_Host_DeviceEnumerationFailed(const uint8_t ErrorCode,
 
     //LEDs_SetAllLEDs(LEDMASK_USB_ERROR);
 
-    LCDPuts_P(PSTR(" EnumFailed"));
+    //LCDPuts_P(PSTR(" EnumFailed"));
+    USBCommState = USBH_ERR_ENUM_FAILED;
 }
 

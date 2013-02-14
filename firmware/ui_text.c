@@ -1,5 +1,7 @@
 #include "ui_text.h"
 #include <avr/pgmspace.h>
+#include <string.h>
+#include <stdlib.h>
 #include "datast.h"
 
 #include "lmk0x0xx.h"
@@ -196,6 +198,7 @@ struct MainMenu {
     struct MenuItem  it_version;
     struct MenuItem  it_freqtest;
     struct MenuItem  it_ctboard;
+    struct MenuItem  it_interfaces;
 };
 
 void OnInfo(void)
@@ -571,10 +574,12 @@ void OnTest(void)
 {
     LCDClear();
 
-    uint8_t res = CTSelfTest(CALLBACK_CTOnSelfTestEvent);
+    uint16_t ret = CTSelfTest(CALLBACK_CTOnSelfTestEvent);
+    uint8_t res = ret & 0xFF;
     LCDSetPos(3, 0);
     if (res == CTR_FAILED) {
-        LCDPuts_P(PSTR("SELF FAILED"));
+        LCDPuts_P(PSTR("SELF FAILED: "));
+        LCD_PrintU16(ret >> 8);
     } else if (res == CTR_OK) {
         LCDPuts_P(PSTR("*SELF PASSED*"));
     } else if (res == CTR_IO_ERROR) {
@@ -589,13 +594,202 @@ void OnTest(void)
     UI_WaitForOk_Enter();
 }
 
+const char sp_clocktamer[] PROGMEM = "ClockTamer";
+
+uint8_t TST_CheckVer(void)
+{
+    char *data;
+    data = CTVer();
+    if (!data) {
+        LCDPuts_P(PSTR("EIO"));
+    } else if (strncmp_P(data, sp_clocktamer, sizeof(sp_clocktamer) - 1)) {
+        LCDPuts_P(PSTR("EDAT"));
+    } else {
+        LCDPuts_P(PSTR("Ok"));
+        return 0;
+    }
+
+    return 1;
+}
+
+uint8_t TST_USBHost(void)
+{
+    switch (USBCommState) {
+    case USBH_MODE_CDC:
+    case USBH_MODE_DFU:
+        LCDPuts_P(PSTR("ETO"));
+        break;
+
+    case USBH_ERR_ENUM_FAILED:
+        LCDPuts_P(PSTR("EENM"));
+        break;
+
+    case USBH_ERR_CONF_DISCRIPTOR:
+        LCDPuts_P(PSTR("ECND"));
+        break;
+
+    case USBH_ERR_CONF_PIPES:
+        LCDPuts_P(PSTR("ECNP"));
+        break;
+
+    case USBH_ERR_CONF_DEVICE:
+        LCDPuts_P(PSTR("ECNE"));
+        break;
+
+    case USBH_ERR_CDC_SETLINE:
+        LCDPuts_P(PSTR("ESL"));
+        break;
+
+    case USBH_CONFIGURED_CDC:
+    case USBH_CONFIGURED_DFU:
+        //LCDPuts_P(PSTR("Ok"));
+        return 0;
+    }
+
+    return 1;
+}
+
+void TST_InitUSB(uint8_t mode)
+{
+    USBCommState = mode;
+    USB_Init(USB_MODE_Host);
+    _delay_ms(100);
+    CTPower(1 << CTM_USB);
+    CTInit(CTM_USB);
+    //sei();
+
+    clocktamer_reset();
+
+    uint8_t i;
+    for (i = 0; i < 100; i++) {
+        if (USBCommState != mode) {
+            return;
+        }
+        uint16_t j;
+        for (j = 0; j < 1000; j++) {
+            USB_ExtraHost();
+            USB_USBTask();
+            _delay_us(100);
+        }
+    }
+
+}
+
+uint8_t TST_DFU(void)
+{
+    char state = 0xff;
+
+    USB_ControlRequest.bmRequestType = REQDIR_DEVICETOHOST | (REQTYPE_CLASS | REQREC_INTERFACE);
+    USB_ControlRequest.bRequest = 0x05; //DFU_GETSTATE
+    USB_ControlRequest.wValue = 0;
+    USB_ControlRequest.wIndex = 0;
+    USB_ControlRequest.wLength = 1;
+
+    switch (USB_Host_SendControlRequest(&state)) {
+    case HOST_SENDCONTROL_Successful:
+        if (state == 2) { /* DFU IDLE */
+            LCDPuts_P(PSTR("Ok"));
+            return 0;
+        }
+        LCDPuts_P(PSTR("Est"));
+        break;
+    case HOST_SENDCONTROL_DeviceDisconnected:
+        LCDPuts_P(PSTR("EDIS"));
+        break;
+    case HOST_SENDCONTROL_PipeError:
+        LCDPuts_P(PSTR("EPIP"));
+        break;
+    case HOST_SENDCONTROL_SetupStalled:
+        LCDPuts_P(PSTR("ESTL"));
+        break;
+    case HOST_SENDCONTROL_SoftwareTimeOut:
+        LCDPuts_P(PSTR("ESTO"));
+        break;
+    }
+    return 1;
+}
+
+
+void OnTestInterfaces(void)
+{
+    uint8_t err = 0;
+
+    CTPower(0);
+    USB_USBTask();
+    USB_Host_VBUS_Manual_Off();
+    USB_Host_VBUS_Auto_Off();
+    USB_Disable();
+
+    LCDClear();
+    _delay_ms(500);
+
+    // Check SPI
+    LCDSetPos(1, 0);
+    LCDPuts_P(PSTR("Testing SPI "));
+    CTPower(1 << CTM_SPI);
+    CTInit(CTM_SPI);
+    _delay_ms(1000);
+
+    err = TST_CheckVer();
+
+    // Check USB
+    LCDSetPos(2, 0);
+    LCDPuts_P(PSTR("Testing USB "));
+
+    TST_InitUSB(USBH_MODE_CDC);
+    if (!TST_USBHost()) {
+        err += TST_CheckVer();
+    } else {
+        err++;
+    }
+
+    CTPower(0);
+    USB_Host_VBUS_Manual_Off();
+    USB_Host_VBUS_Auto_Off();
+    USB_USBTask();
+    USB_HostState = HOST_STATE_Unattached;
+    USB_Disable();
+
+    clocktamer_dfubit_set();
+    _delay_ms(100);
+
+    // Check Bootloader
+    clocktamer_dfubit_set();
+    LCDSetPos(3, 0);
+    LCDPuts_P(PSTR("Testing DFU "));
+    _delay_ms(100);
+
+    TST_InitUSB(USBH_MODE_DFU);
+    if (!TST_USBHost()) {
+        // Test control request
+        err += TST_DFU();
+    } else {
+        err++;
+    }
+
+    clocktamer_dfubit_clear();
+    CTPower(0);
+    USB_USBTask();
+    USB_Disable();
+
+
+    // Rolling back
+    USB_Disable();
+    CTInit(CTM_AUTO);
+    CTPower((1 << CTM_USB) | (1 << CTM_SPI));
+    _delay_ms(100);
+    USB_Init(USB_MODE_UID);
+    UI_WaitForOk_Enter();
+}
+
 static struct MainMenu sp_main_menu PROGMEM = {
-    .menu = { .items = 4, .def_item = 0, .on_back = 0 },
+    .menu = { .items = 6, .def_item = 0, .on_back = 0 },
     .it_program = { .Text = "Program",    .on_event = OnProgram},
     .it_test    = { .Text = "Test",       .on_event = OnTest},
     .it_version = { .Text = "Info",       .on_event = OnInfo},
     .it_freqtest= { .Text = "Freq Meter", .on_event = OnFrequencyMeter},
-    .it_ctboard = { .Text = "CT Board",   .on_event = 0}
+    .it_ctboard = { .Text = "CT Board",   .on_event = 0},
+    .it_interfaces = { .Text = "Iface test", .on_event = OnTestInterfaces}
 };
 
 
