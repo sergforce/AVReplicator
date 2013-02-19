@@ -612,7 +612,7 @@ uint8_t TST_CheckVer(void)
     return 1;
 }
 
-uint8_t TST_USBHost(void)
+uint8_t TST_USBHost(uint8_t pipes)
 {
     switch (USBCommState) {
     case USBH_MODE_CDC:
@@ -641,9 +641,15 @@ uint8_t TST_USBHost(void)
         break;
 
     case USBH_CONFIGURED_CDC:
+        if (pipes == USBH_MODE_CDC)
+            return 0;
+        LCDPuts_P(PSTR("Pdfu"));
+        break;
     case USBH_CONFIGURED_DFU:
-        //LCDPuts_P(PSTR("Ok"));
-        return 0;
+        if (pipes == USBH_MODE_DFU)
+            return 0;
+        LCDPuts_P(PSTR("Pcdc"));
+        break;
     }
 
     return 1;
@@ -667,7 +673,9 @@ void TST_InitUSB(uint8_t mode)
         }
         uint16_t j;
         for (j = 0; j < 1000; j++) {
-            USB_ExtraHost();
+            if (mode == USBH_MODE_CDC) {
+                USB_ExtraHost();
+            }
             USB_USBTask();
             _delay_us(100);
         }
@@ -677,6 +685,8 @@ void TST_InitUSB(uint8_t mode)
 
 uint8_t TST_DFU(void)
 {
+    uint8_t cnt = 5;
+    for(;cnt!=0;cnt--) {
     char state = 0xff;
 
     USB_ControlRequest.bmRequestType = REQDIR_DEVICETOHOST | (REQTYPE_CLASS | REQREC_INTERFACE);
@@ -703,10 +713,14 @@ uint8_t TST_DFU(void)
         LCDPuts_P(PSTR("ESTL"));
         break;
     case HOST_SENDCONTROL_SoftwareTimeOut:
+        if (cnt > 1)
+            continue;
+
         LCDPuts_P(PSTR("ESTO"));
         break;
     }
     return 1;
+    }
 }
 
 
@@ -737,30 +751,34 @@ void OnTestInterfaces(void)
     LCDPuts_P(PSTR("Testing USB "));
 
     TST_InitUSB(USBH_MODE_CDC);
-    if (!TST_USBHost()) {
+    if (!TST_USBHost(USBH_MODE_CDC)) {
         err += TST_CheckVer();
     } else {
         err++;
     }
 
     CTPower(0);
+    USB_USBTask();
     USB_Host_VBUS_Manual_Off();
     USB_Host_VBUS_Auto_Off();
-    USB_USBTask();
-    USB_HostState = HOST_STATE_Unattached;
+    //USB_USBTask();
+    //USB_HostState = HOST_STATE_Unattached;
     USB_Disable();
+    //USB_USBTask();
 
     clocktamer_dfubit_set();
-    _delay_ms(100);
+    _delay_ms(1000);
 
     // Check Bootloader
-    clocktamer_dfubit_set();
+    CTPower(1 << CTM_SPI);
+    _delay_ms(100);
     LCDSetPos(3, 0);
     LCDPuts_P(PSTR("Testing DFU "));
-    _delay_ms(100);
 
     TST_InitUSB(USBH_MODE_DFU);
-    if (!TST_USBHost()) {
+    //_delay_ms(10000);
+
+    if (!TST_USBHost(USBH_MODE_DFU)) {
         // Test control request
         err += TST_DFU();
     } else {
@@ -770,8 +788,11 @@ void OnTestInterfaces(void)
     clocktamer_dfubit_clear();
     CTPower(0);
     USB_USBTask();
+    USB_Host_VBUS_Manual_Off();
+    USB_Host_VBUS_Auto_Off();
     USB_Disable();
 
+    _delay_ms(1000);
 
     // Rolling back
     USB_Disable();

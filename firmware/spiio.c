@@ -481,6 +481,7 @@ uint8_t clocktamer_sendcmd(char* cmd, uint8_t max_reply)
 
 void clocktamer_reset(void)
 {
+    CT_DDR |= (1 << CT_RESET);
     AVRSPI_RESET_DOWN();
     _delay_ms(250);
     AVRSPI_RESET_UP();
@@ -489,11 +490,30 @@ void clocktamer_reset(void)
 void clocktamer_dfubit_set(void)
 {
     CTS_PORT &= ~(1 << CTS_CS);
+
+    SPCR = 0;
+
+    _nop();
+
+    //Turn off SPI to get rid of phantom power
+    //SPI_DDR &= ~((1 << SPI_MOSI) | (1 << SPI_SCK));
+    SPI_PORT &= ~((1 << SPI_MISO) | (1 << SPI_MOSI) | (1 << SPI_SCK));
+
+
+    CT_DDR &= ~(1 << CT_RESET);
+    CT_PORT &= ~(1 << CT_RESET);
+
 }
 
 void clocktamer_dfubit_clear(void)
 {
+    //SPI_DDR |= (1 << SPI_MOSI) | (1 << SPI_SCK);
+    CT_DDR |= (1 << CT_RESET);
+    CT_PORT |= (1 << CT_RESET);
+
     CTS_PORT |= (1 << CTS_CS);
+
+    spi_slow();
 }
 
 
