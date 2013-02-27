@@ -199,6 +199,7 @@ struct MainMenu {
     struct MenuItem  it_freqtest;
     struct MenuItem  it_ctboard;
     struct MenuItem  it_interfaces;
+    struct MenuItem  it_ext_test;
 };
 
 void OnInfo(void)
@@ -269,7 +270,7 @@ void LCD_PrintFreq(uint32_t freq)
         if (!started && digit > 0) {
             started = 1;
         }
-        if (started) {
+        if (started || start == 1) {
             LCDPutChar('0' + digit);
         } else {
             LCDPutChar(' ');
@@ -338,8 +339,52 @@ static inline uint64_t uint64_shiftr_round (uint64_t v, uint8_t count)
     return uint64_sr(v);
 }
 
+uint8_t FrequencyMeter_CheckNew(void)
+{
+    uint8_t mes = FreqGetMes();
+    uint8_t m =   active_widget_data.data[FM_MES];
+    if (mes == m)
+        return 0;
+
+    active_widget_data.data[FM_MES] = mes;
+    return 1;
+}
+
+void FrequencyMeter_DispFreq(uint32_t* pfreq, uint32_t* pdelta)
+{
+    uint32_t prev = *((uint32_t*)&active_widget_data.data[FM_PREV]);
+    uint32_t cur = FreqGetTicks();
+
+    int32_t delta = cur - prev;
+    *((uint32_t*)&active_widget_data.data[FM_PREV]) = cur;
+
+    //Show new value
+    uint32_t freq = FreqCalculate(cur, active_widget_data.data[FM_DIV]);
+    //LCDClear();
+    LCDSetPos(1,1);
+    LCD_PrintFreq(freq);
+    if (pfreq) *pfreq = freq;
+
+    LCDSetPos(2,0);
+    uint8_t sign = 0;
+    if (delta < 0) {
+        delta = -delta;
+        sign = 1;
+        LCDPutChar('-');
+    } else if (delta > 0) {
+        LCDPutChar('+');
+    } else {
+        LCDPutChar(' ');
+    }
+    uint32_t dfreq = FreqCalculate((uint32_t)delta, active_widget_data.data[FM_DIV]);
+    LCD_PrintFreq(dfreq);
+
+    if (pdelta) *pdelta = dfreq;
+}
+
 void TASK_FrequencyMeter(void)
 {
+#if 0
     uint8_t mes = FreqGetMes();
     uint8_t m =   active_widget_data.data[FM_MES];
     if (mes == m)
@@ -382,6 +427,12 @@ void TASK_FrequencyMeter(void)
     }
     uint32_t dfreq = FreqCalculate((uint32_t)delta, active_widget_data.data[FM_DIV]);
     LCD_PrintFreq(dfreq);
+#endif
+    if (!FrequencyMeter_CheckNew())
+        return;
+
+    uint32_t freq;
+    FrequencyMeter_DispFreq(&freq, 0);
 
     if (active_widget_data.data[FM_MES] < 2)
         return;
@@ -619,27 +670,11 @@ uint8_t TST_USBHost(uint8_t pipes)
     case USBH_MODE_DFU:
         LCDPuts_P(PSTR("ETO"));
         break;
-
-    case USBH_ERR_ENUM_FAILED:
-        LCDPuts_P(PSTR("EENM"));
-        break;
-
-    case USBH_ERR_CONF_DISCRIPTOR:
-        LCDPuts_P(PSTR("ECND"));
-        break;
-
-    case USBH_ERR_CONF_PIPES:
-        LCDPuts_P(PSTR("ECNP"));
-        break;
-
-    case USBH_ERR_CONF_DEVICE:
-        LCDPuts_P(PSTR("ECNE"));
-        break;
-
-    case USBH_ERR_CDC_SETLINE:
-        LCDPuts_P(PSTR("ESL"));
-        break;
-
+    case USBH_ERR_ENUM_FAILED:    LCDPuts_P(PSTR("EENM"));       break;
+    case USBH_ERR_CONF_DISCRIPTOR:LCDPuts_P(PSTR("ECND"));       break;
+    case USBH_ERR_CONF_PIPES:     LCDPuts_P(PSTR("ECNP"));       break;
+    case USBH_ERR_CONF_DEVICE:    LCDPuts_P(PSTR("ECNE"));       break;
+    case USBH_ERR_CDC_SETLINE:    LCDPuts_P(PSTR("ESL"));        break;
     case USBH_CONFIGURED_CDC:
         if (pipes == USBH_MODE_CDC)
             return 0;
@@ -721,10 +756,12 @@ uint8_t TST_DFU(void)
     }
     return 1;
     }
+
+    // Should not be here
+    return 1;
 }
 
-
-void OnTestInterfaces(void)
+uint8_t TestProcedureInterfaces(void)
 {
     uint8_t err = 0;
 
@@ -761,23 +798,16 @@ void OnTestInterfaces(void)
     USB_USBTask();
     USB_Host_VBUS_Manual_Off();
     USB_Host_VBUS_Auto_Off();
-    //USB_USBTask();
-    //USB_HostState = HOST_STATE_Unattached;
     USB_Disable();
-    //USB_USBTask();
 
     clocktamer_dfubit_set();
     _delay_ms(1000);
 
     // Check Bootloader
-    CTPower(1 << CTM_SPI);
-    _delay_ms(100);
     LCDSetPos(3, 0);
     LCDPuts_P(PSTR("Testing DFU "));
 
     TST_InitUSB(USBH_MODE_DFU);
-    //_delay_ms(10000);
-
     if (!TST_USBHost(USBH_MODE_DFU)) {
         // Test control request
         err += TST_DFU();
@@ -800,17 +830,207 @@ void OnTestInterfaces(void)
     CTPower((1 << CTM_USB) | (1 << CTM_SPI));
     _delay_ms(100);
     USB_Init(USB_MODE_UID);
+
+    return err;
+}
+
+
+void OnTestInterfaces(void)
+{
+    OnTestInterfaces();
+    UI_WaitForOk_Enter();
+}
+
+
+void PrintClockTamerError(uint8_t err)
+{
+    switch (err) {
+    case CTR_IO_ERROR:          LCDPuts_P(PSTR("E_io"));  break;
+    case CTR_SYNTAX_ERROR:      LCDPuts_P(PSTR("Estx"));  break;
+    case CTR_CMD_ERROR:         LCDPuts_P(PSTR("Ecmd"));  break;
+    case CTR_FAILED:            LCDPuts_P(PSTR("Efld"));  break;
+    case CTR_BAD_TUNING_RANGE:  LCDPuts_P(PSTR("Ebtr"));  break;
+    case CTR_CANT_TUNE:         LCDPuts_P(PSTR("Ecnt"));  break;
+    case CTR_INCORRECT_REPLY:   LCDPuts_P(PSTR("Einc"));  break;
+    default:                    LCDPuts_P(PSTR("Eunk"));  break;
+    }
+}
+void TestProcedureTestExtFreq_GetFreqs(uint32_t* min, uint32_t* max)
+{
+    uint32_t freq_min = (uint32_t)(-1);
+    uint32_t freq_max = 0;
+
+    //Collect stat for 10 seconds
+    uint8_t i;
+    for (i = 0; i < 200; i++) {
+        _delay_ms(100);
+        if (!FrequencyMeter_CheckNew())
+            continue;
+
+        uint32_t freq;
+        FrequencyMeter_DispFreq(&freq, 0);
+
+        if (active_widget_data.data[FM_MES] < 2)
+            continue;
+
+        if (freq < freq_min) {
+            freq_min = freq;
+        }
+        if (freq_max < freq) {
+            freq_max = freq;
+        }
+
+        //print progress
+        LCDSetPos(3,1);
+        LCDPuts_P(PSTR("Progress: "));
+        LCD_PrintU16(i>>1);
+        LCDPutChar('%');
+    }
+
+    *min = freq_min;
+    *max = freq_max;
+}
+
+uint8_t TestProcedureTestExtFreq(uint32_t freq)
+{
+    uint8_t err = 0;
+    uint8_t ret;
+
+    ret = CTSetOutput(freq);
+    if (ret != CTR_OK)
+        goto print_eror_and_exit;
+
+    //Print header
+    LMKEnable(1);
+    LCDClear();
+    LCDSetPos(0,0);
+    LCDPuts_P(PSTR("SET"));
+    LCD_PrintFreq(freq);
+
+    //Wait to setle frequency
+    _delay_ms(100);
+
+
+    active_widget_data.data[FM_MODE_CNT] = FMT_NORMAL;
+    active_widget_data.data[FM_DIV]      = 255;
+    uint8_t j;
+
+    LCDSetPos(3,0);
+    LCDPutChar('A');
+
+    for (j = 0; j < 2; j++) {
+        //Initialize counter
+        FrequencyMeterReset();
+
+        uint32_t freq_min, freq_max;
+        TestProcedureTestExtFreq_GetFreqs(&freq_min, &freq_max);
+
+        uint32_t delta;
+        uint16_t reldelta;
+
+        delta = freq_max - freq_min;
+        if (delta > freq) {
+            reldelta = 9999;
+        } else {
+            reldelta = (delta * 1000) / freq_min;
+        }
+
+        FreqStopMeasure();
+        LMKEnable(0);
+
+        LCDSetPos(1,0);
+        LCDPuts_P(PSTR("MAX"));
+        LCD_PrintFreq(freq_max);
+        LCDSetPos(2,0);
+        LCDPuts_P(PSTR("MIN"));
+        LCD_PrintFreq(freq_min);
+
+        LCDSetPos(3,0);
+        LCDPuts_P(PSTR("R: "));
+        LCD_PrintU16(reldelta);
+
+        if (freq > freq_max) {
+            freq_max = freq;
+        }
+        if (freq < freq_min) {
+            freq_max = freq;
+        }
+        delta = freq_max - freq_min;
+        uint16_t relsdelta;
+        if (delta > freq)  {
+            relsdelta = 9999;
+        } else {
+            relsdelta = (delta * 1000) / freq_min;
+        }
+
+        LCDPuts_P(PSTR(" Q: "));
+        LCD_PrintU16(reldelta);
+
+        LCDPutChar(' ');
+        LCDPutChar(' ');
+
+        if (!((reldelta < 9) && (relsdelta < 9))) {
+            goto measure_error;
+        }
+
+        // Set optimized devider and count more precise
+
+        LCDSetPos(3,0);
+        LCDPutChar('B');
+
+        uint16_t p = (freq >> 21);  // 2mhz
+        if (p > 255) {
+            p = 255;
+        }
+        active_widget_data.data[FM_DIV]      = p;
+    }
+
+    _delay_ms(2000);
+    return 0;
+
+measure_error:
+    return 100;
+
+print_eror_and_exit:
+    PrintClockTamerError(err);
+    return 200;
+}
+
+uint32_t TestProcedure_freqs[] PROGMEM = {
+    10000000,
+    19600000,
+    20480000,
+    30770000,
+    38200000,
+    40960000,
+    52000000,
+    64000000,
+    92000000
+};
+
+void OnExtFreq(void)
+{
+    uint8_t i;
+    for (i = 0; i < sizeof(TestProcedure_freqs) / sizeof(uint32_t); i++) {
+        uint32_t freq = pgm_read_dword((uint32_t*)TestProcedure_freqs + i);
+        uint8_t  ret = TestProcedureTestExtFreq(freq);
+
+        if (ret) {
+            break;
+        }
+    }
     UI_WaitForOk_Enter();
 }
 
 static struct MainMenu sp_main_menu PROGMEM = {
-    .menu = { .items = 6, .def_item = 0, .on_back = 0 },
+    .menu = { .items = 7, .def_item = 0, .on_back = 0 },
     .it_program = { .Text = "Program",    .on_event = OnProgram},
     .it_test    = { .Text = "Test",       .on_event = OnTest},
     .it_version = { .Text = "Info",       .on_event = OnInfo},
     .it_freqtest= { .Text = "Freq Meter", .on_event = OnFrequencyMeter},
     .it_ctboard = { .Text = "CT Board",   .on_event = 0},
-    .it_interfaces = { .Text = "Iface test", .on_event = OnTestInterfaces}
+    .it_interfaces = { .Text = "Iface test", .on_event = OnTestInterfaces},
+    .it_ext_test = { .Text = "Ext Freq", .on_event = OnExtFreq}
 };
 
 
