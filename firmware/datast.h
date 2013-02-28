@@ -74,15 +74,15 @@ struct FirmwareId
 
 enum HwReason {
     HR_ENTER_PROG = 1,
-    HR_PROG_FLASH,
-    HR_PROG_EEPROM,
-    HR_PORG_FUSES,
-    HR_VERIFY_FLASH,
-    HR_VERIFY_EEPROM,
-    HR_VERIFY_FUSES,
-    HR_READ_FLASH,
-    HR_READ_EEPROM,
-    HR_READ_FUSES
+    HR_PROG_FLASH    = 0x12,
+    HR_PROG_EEPROM   = 0x14,
+    HR_PORG_FUSES    = 0x16,
+    HR_VERIFY_FLASH  = 0x22,
+    HR_VERIFY_EEPROM = 0x24,
+    HR_VERIFY_FUSES  = 0x26,
+    HR_READ_FLASH    = 0x32,
+    HR_READ_EEPROM   = 0x34,
+    HR_READ_FUSES    = 0x36,
 };
 
 /**

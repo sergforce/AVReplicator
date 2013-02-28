@@ -193,13 +193,15 @@ void UI_WaitForOk_Enter(void)
 
 struct MainMenu {
     struct Menu      menu;
+    struct MenuItem  it_prog_tst;
     struct MenuItem  it_program;
     struct MenuItem  it_test;
     struct MenuItem  it_version;
     struct MenuItem  it_freqtest;
-    struct MenuItem  it_ctboard;
     struct MenuItem  it_interfaces;
     struct MenuItem  it_ext_test;
+    struct MenuItem  it_all_test;
+//    struct MenuItem  it_ctboard;
 };
 
 void OnInfo(void)
@@ -236,18 +238,77 @@ io_error:
     UI_WaitForOk_Enter();
 }
 
-void DisplayError(uint8_t code);
-extern char afe_nofw[] PROGMEM;
+//                  Maximum message      "0123456789012345"
+static const char afe_ok[] PROGMEM     = "Ok";
+static const char afe_no_mem[] PROGMEM = "No free memory";
+static const char afe_isp[] PROGMEM    = "Can't enter ISP";
+static const char afe_sig[] PROGMEM    = "Incorrect sign.";
+static const char afe_unkn[] PROGMEM   = "Unknown error";
+
+static const char afe_fprog[] PROGMEM  = "Failed flash";
+static const char afe_fee[] PROGMEM    = "Failed eeprom";
+static const char afe_ff[] PROGMEM     = "Failed fuses";
+
+static const char afe_nofw[] PROGMEM   = "No firmwares";
+
+void DisplayError(uint8_t code)
+{
+    switch (code) {
+    case AFE_OK:               LCDPuts_P(afe_ok); break;
+    case AFE_NO_MEM:           LCDPuts_P(afe_no_mem); break;
+    case AFE_FAILED_ENTER_ISP: LCDPuts_P(afe_isp); break;
+    case AFE_FAILED_SIGNATURE: LCDPuts_P(afe_sig); break;
+    case AFE_FAILED_PROG_FLASH:LCDPuts_P(afe_fprog); break;
+    case AFE_FAILED_PROG_EEPROM:LCDPuts_P(afe_fee); break;
+    case AFE_FAILED_PROG_FUSE: LCDPuts_P(afe_ff); break;
+    default:                   LCDPuts_P(afe_unkn); break;
+    }
+}
+
+int8_t CALLBACK_OnProgram(int8_t reason, int8_t progress)
+{
+    LCDSetPos(2,0);
+    switch (reason & 0xF0) {
+    case (HR_PROG_FLASH & 0xF0):   LCDPuts_P(PSTR("Write  ")); break;
+    case (HR_VERIFY_FLASH & 0xF0): LCDPuts_P(PSTR("Verify ")); break;
+    }
+    switch (reason & 0x0F) {
+    case (HR_PROG_FLASH & 0x0F):   LCDPuts_P(PSTR("FLASH ")); break;
+    case (HR_PROG_EEPROM & 0x0F):  LCDPuts_P(PSTR("EEPROM")); break;
+    case (HR_PORG_FUSES & 0x0F):   LCDPuts_P(PSTR("FUSES ")); break;
+    }
+    LCD_PrintU16(progress);
+    LCDPutChar('%');
+    return 0;
+}
+
+uint8_t ProgramClockTamer(void)
+{
+    LCDClear();
+    struct FirmwareId* p = EDSSelectFirmware(0);
+    LCDSetPos(0,0);
+    LCDPuts_P(PSTR("Flashing..."));
+
+    if (p) {
+        LCDSetPos(1,0);
+        LCDPuts(p->name);
+
+        LCDSetPos(3,0);
+        uint8_t res = EDSFlashFirmware(CALLBACK_OnProgram);
+        DisplayError(res);
+
+        return res;
+    } else {
+        LCDSetPos(3,0);
+        LCDPuts_P(afe_nofw);
+
+        return 1;
+    }
+}
 
 void OnProgram(void)
 {
-    LCDSetPos(3,0);
-    struct FirmwareId* p = EDSSelectFirmware(0);
-    if (p) {
-        DisplayError(EDSFlashFirmware(0));
-    } else {
-        LCDPuts_P(afe_nofw);
-    }
+    ProgramClockTamer();
     UI_WaitForOk_Enter();
 }
 
@@ -384,50 +445,6 @@ void FrequencyMeter_DispFreq(uint32_t* pfreq, uint32_t* pdelta)
 
 void TASK_FrequencyMeter(void)
 {
-#if 0
-    uint8_t mes = FreqGetMes();
-    uint8_t m =   active_widget_data.data[FM_MES];
-    if (mes == m)
-        return;
-
-    active_widget_data.data[FM_MES] = mes;
-
-    uint32_t prev = *((uint32_t*)&active_widget_data.data[FM_PREV]);
-    uint32_t cur = FreqGetTicks();
-
-    ////////LCDSetPos(1,1);
-    ////////LCD_PrintFreq(cur);
-    ////////LCDSetPos(3,1);
-    ////////LCD_PrintFreq(prev);
-    ///////*((uint32_t*)&active_widget_data.data[FM_PREV]) = cur;
-    /////// return;
-
-    //if (prev == cur)
-    //    return;
-
-    int32_t delta = cur - prev;
-    *((uint32_t*)&active_widget_data.data[FM_PREV]) = cur;
-
-    //Show new value
-    uint32_t freq = FreqCalculate(cur, active_widget_data.data[FM_DIV]);
-    //LCDClear();
-    LCDSetPos(1,1);
-    LCD_PrintFreq(freq);
-
-    LCDSetPos(2,0);
-    uint8_t sign = 0;
-    if (delta < 0) {
-        delta = -delta;
-        sign = 1;
-        LCDPutChar('-');
-    } else if (delta > 0) {
-        LCDPutChar('+');
-    } else {
-        LCDPutChar(' ');
-    }
-    uint32_t dfreq = FreqCalculate((uint32_t)delta, active_widget_data.data[FM_DIV]);
-    LCD_PrintFreq(dfreq);
-#endif
     if (!FrequencyMeter_CheckNew())
         return;
 
@@ -586,6 +603,14 @@ void OnFrequencyMeter(void)
 
 //////////////////////////////////////////////////////////////////////////
 // UI Test Menu
+//////////////////////////////////////////////////////////////////////////
+
+
+
+////////////////////////////////////////////////////////////
+// Code for selftesting
+////////////////////////////////////////////////////////////
+
 void CALLBACK_CTOnSelfTestEvent(uint8_t type, uint32_t value, uint8_t res)
 {
     switch (type) {
@@ -621,7 +646,8 @@ print_status:
 }
 
 extern char g_ctrecvbuffer[];
-void OnTest(void)
+
+uint8_t TestSelf(void)
 {
     LCDClear();
 
@@ -633,6 +659,7 @@ void OnTest(void)
         LCD_PrintU16(ret >> 8);
     } else if (res == CTR_OK) {
         LCDPuts_P(PSTR("*SELF PASSED*"));
+        return 0;
     } else if (res == CTR_IO_ERROR) {
         LCDPuts_P(PSTR("IO ERROR"));
     } else {
@@ -642,9 +669,18 @@ void OnTest(void)
         LCDPutsBig(g_ctrecvbuffer, 0);
     }
 
+    return 1;
+}
+
+void OnTest(void)
+{
+    TestSelf();
     UI_WaitForOk_Enter();
 }
 
+////////////////////////////////////////////////////////////
+// Code for Interface testing
+////////////////////////////////////////////////////////////
 const char sp_clocktamer[] PROGMEM = "ClockTamer";
 
 uint8_t TST_CheckVer(void)
@@ -842,6 +878,9 @@ void OnTestInterfaces(void)
 }
 
 
+////////////////////////////////////////////////////////////
+// Code for external frequency testing
+////////////////////////////////////////////////////////////
 void PrintClockTamerError(uint8_t err)
 {
     switch (err) {
@@ -901,7 +940,6 @@ uint8_t TestProcedureTestExtFreq(uint32_t freq)
         goto print_eror_and_exit;
 
     //Print header
-    LMKEnable(1);
     LCDClear();
     LCDSetPos(0,0);
     LCDPuts_P(PSTR("SET"));
@@ -920,6 +958,10 @@ uint8_t TestProcedureTestExtFreq(uint32_t freq)
 
     for (j = 0; j < 2; j++) {
         //Initialize counter
+        LMKEnable(1);
+        _delay_us(100);
+        LCDSetPos(1,14); LCDPutChar(' '); LCDPutChar(' ');
+        LCDSetPos(2,14); LCDPutChar(' '); LCDPutChar(' ');
         FrequencyMeterReset();
 
         uint32_t freq_min, freq_max;
@@ -964,7 +1006,7 @@ uint8_t TestProcedureTestExtFreq(uint32_t freq)
         }
 
         LCDPuts_P(PSTR(" Q: "));
-        LCD_PrintU16(reldelta);
+        LCD_PrintU16(relsdelta);
 
         LCDPutChar(' ');
         LCDPutChar(' ');
@@ -977,12 +1019,15 @@ uint8_t TestProcedureTestExtFreq(uint32_t freq)
 
         LCDSetPos(3,0);
         LCDPutChar('B');
-
-        uint16_t p = (freq >> 21);  // 2mhz
+        uint16_t p = (freq_max >> 21);  // 2mhz
         if (p > 255) {
             p = 255;
         }
         active_widget_data.data[FM_DIV]      = p;
+
+
+        USB_ExtraHost();
+        USB_USBTask();
     }
 
     _delay_ms(2000);
@@ -1008,7 +1053,7 @@ uint32_t TestProcedure_freqs[] PROGMEM = {
     92000000
 };
 
-void OnExtFreq(void)
+uint8_t TestProcedureAllTest(void)
 {
     uint8_t i;
     for (i = 0; i < sizeof(TestProcedure_freqs) / sizeof(uint32_t); i++) {
@@ -1016,21 +1061,71 @@ void OnExtFreq(void)
         uint8_t  ret = TestProcedureTestExtFreq(freq);
 
         if (ret) {
-            break;
+            return ret;
         }
     }
+    return 0;
+}
+
+void OnExtFreq(void)
+{
+    TestProcedureAllTest();
+    UI_WaitForOk_Enter();
+}
+
+
+
+void OnAverallCTTest(void)
+{
+    uint8_t res;
+
+    // Interface test
+    res = TestProcedureInterfaces();
+    if (res) goto testing_end;
+
+    // Selftesting
+    res = TestSelf();
+    if (res) goto testing_end;
+
+    // External testing
+    res = TestProcedureAllTest();
+    if (res) goto testing_end;
+
+    // Everything is ok
+    LCDClear();
+    LCDSetPos(0,0);
+    LCDPuts_P(PSTR("Testing done: OK"));
+
+testing_end:
+    UI_WaitForOk_Enter();
+}
+
+void OnProgramAndTest(void)
+{
+    uint8_t res = ProgramClockTamer();
+    if (res) goto program_end;
+
+    // Reset ClockTamer
+    clocktamer_reset();
+
+    OnAverallCTTest();
+    return;
+
+program_end:
     UI_WaitForOk_Enter();
 }
 
 static struct MainMenu sp_main_menu PROGMEM = {
-    .menu = { .items = 7, .def_item = 0, .on_back = 0 },
-    .it_program = { .Text = "Program",    .on_event = OnProgram},
-    .it_test    = { .Text = "Test",       .on_event = OnTest},
+    .menu = { .items = 8, .def_item = 0, .on_back = 0 },
+    .it_prog_tst = { .Text = "Program&Test",   .on_event = OnProgramAndTest},
+    .it_program = { .Text = "Only Program",    .on_event = OnProgram},
+    .it_test    = { .Text = "SelfTest",   .on_event = OnTest},
     .it_version = { .Text = "Info",       .on_event = OnInfo},
     .it_freqtest= { .Text = "Freq Meter", .on_event = OnFrequencyMeter},
-    .it_ctboard = { .Text = "CT Board",   .on_event = 0},
-    .it_interfaces = { .Text = "Iface test", .on_event = OnTestInterfaces},
-    .it_ext_test = { .Text = "Ext Freq", .on_event = OnExtFreq}
+    .it_interfaces = { .Text = "Iface test",  .on_event = OnTestInterfaces},
+    .it_ext_test = { .Text = "Ext Freq",      .on_event = OnExtFreq},
+    .it_all_test = { .Text = "All tests",     .on_event = OnAverallCTTest},
+//    .it_ctboard = { .Text = "CT Board",   .on_event = 0},
 };
 
 

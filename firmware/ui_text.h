@@ -11,6 +11,7 @@
  * @file File contsning User interface
  */
 
+void LCD_PrintU16(uint16_t val);
 
 /**
  * @brief UITask function process user interaction.

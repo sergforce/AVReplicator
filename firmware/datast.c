@@ -133,6 +133,14 @@ struct FirmwareId* EDSSelectFirmware(uint8_t index)
     return &s_fwactive;
 }
 
+static uint8_t GetProgress(uint16_t addr, uint16_t max)
+{
+    uint16_t progress = ((uint32_t)addr << 8) / max;
+    progress *= 100;
+    progress >>= 8;
+    return progress;
+}
+
 uint8_t EDSFlashFirmware(CALLBACK_FLASH_FN fn)
 {
     if (avrisp_enter() != 0)
@@ -158,6 +166,10 @@ uint8_t EDSFlashFirmware(CALLBACK_FLASH_FN fn)
 
         read_block(dataoffset, tmpdata, AVRISP_MEGA32U2_PAGESIZE_BYTES);
         avrisp_flash_page(addr/2, tmpdata, AVRISP_MEGA32U2_PAGESIZE_BYTES/2);
+
+        if (fn) {
+            fn(HR_PROG_FLASH, GetProgress(addr, s_fwactive.programSize));
+        }
     }
 
     addr = dataoffset & (BLOCK_SIZE - 1);
@@ -181,6 +193,11 @@ uint8_t EDSFlashFirmware(CALLBACK_FLASH_FN fn)
             errcode = AFE_FAILED_PROG_FLASH;
             goto error_isp;
         }
+
+        if (fn) {
+            fn(HR_VERIFY_FLASH, GetProgress(addr, s_fwactive.programSize));
+        }
+
     }
 
     // Program eeporm
@@ -190,6 +207,10 @@ uint8_t EDSFlashFirmware(CALLBACK_FLASH_FN fn)
 
         read_block(dataoffset, tmpdata, AVRISP_MEGA32U2_EEPAGESIZE_BYTES);
         avrisp_write_eeprom_page(addr, tmpdata, AVRISP_MEGA32U2_EEPAGESIZE_BYTES);
+
+        if (fn) {
+            fn(HR_PROG_EEPROM, GetProgress(addr, s_fwactive.eepromSize));
+        }
     }
 
 
@@ -208,6 +229,10 @@ uint8_t EDSFlashFirmware(CALLBACK_FLASH_FN fn)
             errcode = AFE_FAILED_PROG_EEPROM;
             goto error_isp;
         }
+
+        if (fn) {
+            fn(HR_VERIFY_EEPROM, GetProgress(addr, s_fwactive.eepromSize));
+        }
     }
 
 
@@ -215,6 +240,9 @@ uint8_t EDSFlashFirmware(CALLBACK_FLASH_FN fn)
     avrisp_write_fuse(s_fwactive.fuse);
     avrisp_write_fuse_ex(s_fwactive.fuseEx);
     avrisp_write_fuse_high(s_fwactive.fuseHi);
+    if (fn) {
+        fn(HR_PORG_FUSES, 100);
+    }
 
     // Check fuses
     uint8_t f = avrisp_read_fuse();
@@ -224,7 +252,9 @@ uint8_t EDSFlashFirmware(CALLBACK_FLASH_FN fn)
         errcode = AFE_FAILED_PROG_FUSE;
         goto error_isp;
     }
-
+    if (fn) {
+        fn(HR_VERIFY_FUSES, 100);
+    }
     // Udate stat ???
 
 error_isp:
