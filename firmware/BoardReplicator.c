@@ -14,7 +14,7 @@
 #include "datast_usb.h"
 
 #include "ui_text.h"
-
+#include "lmk0x0xx.h"
 #include "leds.h"
 
 /** Main program entry point. This routine contains the overall program flow, including initial
@@ -34,6 +34,11 @@ int main(void)
     sei();
 
     LCDClear();
+    LCDSetPos(0,0);
+    LCDPuts_P(PSTR("Initializing..."));
+
+    _delay_ms(3000);
+
     UIStart();
 
     for (;;)

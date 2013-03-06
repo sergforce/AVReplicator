@@ -28,6 +28,7 @@ const char g_ctc_autotest[] PROGMEM = "SET,STS,AUT";
 const char g_ctc_pinled[] PROGMEM = "PIN,LED,";
 
 const char g_ctc_inf_osc[] PROGMEM = "INF,,OSC";
+const char g_ctc_inf_out[] PROGMEM = "INF,,OUT";
 
 const char g_rep_ok[] PROGMEM = "OK";
 const char g_rep_syntax[] PROGMEM = "SYNTAX";
@@ -210,6 +211,15 @@ uint8_t CTGetOsc(uint32_t *posc)
     strcpy_PF(g_ctrecvbuffer, g_ctc_inf_osc);
     if (ct_send_simple_cmd() == 0) {
         return parse_info_reply(g_ctc_inf_osc, posc);
+    }
+    return CTR_IO_ERROR;
+}
+
+uint8_t CTGetOutput(uint32_t *pout)
+{
+    strcpy_PF(g_ctrecvbuffer, g_ctc_inf_out);
+    if (ct_send_simple_cmd() == 0) {
+        return parse_info_reply(g_ctc_inf_out, pout);
     }
     return CTR_IO_ERROR;
 }

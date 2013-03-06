@@ -201,7 +201,7 @@ struct MainMenu {
     struct MenuItem  it_interfaces;
     struct MenuItem  it_ext_test;
     struct MenuItem  it_all_test;
-//    struct MenuItem  it_ctboard;
+    struct MenuItem  it_ctboard;
 };
 
 void OnInfo(void)
@@ -884,6 +884,7 @@ void OnTestInterfaces(void)
 void PrintClockTamerError(uint8_t err)
 {
     switch (err) {
+    case CTR_OK:                LCDPuts_P(PSTR( "OK "));  break;
     case CTR_IO_ERROR:          LCDPuts_P(PSTR("E_io"));  break;
     case CTR_SYNTAX_ERROR:      LCDPuts_P(PSTR("Estx"));  break;
     case CTR_CMD_ERROR:         LCDPuts_P(PSTR("Ecmd"));  break;
@@ -1115,17 +1116,207 @@ program_end:
     UI_WaitForOk_Enter();
 }
 
+/////////////////////////////////////////////////////////
+// UI CT BOARD
+/////////////////////////////////////////////////////////
+
+enum CTBRDState {
+    CTBR_NONE = 0,
+    CTBR_DORDER1,// = 0x11,
+    CTBR_DORDER2,// = 0x12,
+    CTBR_DORDER3,// = 0x13,
+    CTBR_DORDER4,// = 0x14,
+    CTBR_DORDER5,// = 0x15,
+    CTBR_DORDER6,// = 0x16,
+    CTBR_DORDER7,// = 0x17,
+    CTBR_DORDER8,// = 0x18,
+    CTBR_DORDER9,// = 0x19,
+    CTBR_OUT0,// = 0x20,
+    CTBR_OUT1,// = 0x21,
+    CTBR_OUT3,// = 0x23,
+    CTBR_OUT4,// = 0x24,
+    CTBR_OUT5,// = 0x25,
+    CTBR_OUT6,// = 0x26,
+    CTBR_OUT7,// = 0x27,
+    CTBR_SET,//  = 0x30,
+    CTBR_SAVE// = 0x40
+};
+
+#define CTBR_M_STATE        2
+#define CTBR_M_FREQ         3
+#define CTBR_M_OUT          7
+
+static void CTBR_UpdateUI(void)
+{
+    LCDClear();
+    LCDSetPos(0,1);
+    LCD_PrintU16(*(uint32_t*)(&active_widget_data.data[CTBR_M_FREQ]));
+
+    LCDSetPos(2,0);
+    uint8_t mout = active_widget_data.data[CTBR_M_OUT];
+    uint8_t pos;
+    for (pos = 0; pos != 0x80; pos<<=1) {
+        if (pos == 0x4) {
+            LCDPutChar('x');
+        } else {
+            LCDPutChar((mout & pos) ? '1' : '0');
+        }
+        LCDPutChar(' ');
+    }
+
+    LCDSetPos(3,0);
+    LCDPuts_P(PSTR(" Set  Save"));
+
+    switch (active_widget_data.data[CTBR_M_STATE]) {
+    case CTBR_NONE:
+        return;
+    case CTBR_SET:  LCDSetPos(3,0); LCDPutChar('>'); break;
+    case CTBR_SAVE: LCDSetPos(3,5); LCDPutChar('>'); break;
+    default:
+        if (active_widget_data.data[CTBR_M_STATE] < CTBR_OUT0) {
+            uint8_t dig = active_widget_data.data[CTBR_M_STATE] - CTBR_DORDER1;
+            if (dig > 5) {
+                dig += 2;
+            } else if (dig > 2) {
+                dig ++;
+            }
+            LCDSetPos(2, 13 - dig); LCDPutChar('^'); break;
+        } else {
+            pos = active_widget_data.data[CTBR_M_STATE] - CTBR_OUT0;
+            if (pos > 1) ++pos;
+            pos <<= 1;
+            LCDSetPos(2, pos); LCDPutChar('_'); break;
+        }
+    }
+}
+
+void UP_OnCTBRUp(void)
+{
+    if (++active_widget_data.data[CTBR_M_STATE] > CTBR_SAVE)
+        active_widget_data.data[CTBR_M_STATE] = CTBR_NONE;
+
+    CTBR_UpdateUI();
+}
+
+void DOWN_OnCTBRDown(void)
+{
+    if (active_widget_data.data[CTBR_M_STATE]-- == CTBR_NONE)
+        active_widget_data.data[CTBR_M_STATE] = CTBR_SAVE;
+
+    CTBR_UpdateUI();
+}
+
+static uint32_t Order10(uint8_t o)
+{
+    uint32_t res = 1;
+    while (--o) {
+        res *= 10;
+    }
+    return res;
+}
+
+static void CTBR_UpdateOuts(void)
+{
+    uint8_t bit = active_widget_data.data[CTBR_M_STATE] - CTBR_OUT0;
+    if (bit > 1) ++bit;
+    active_widget_data.data[CTBR_M_OUT] ^= bit;
+
+    LCDSetPos(3, 11);
+    PrintClockTamerError(CTStoreToEEPROM());
+}
+
+void OK_OnCTBROk(void)
+{
+    switch (active_widget_data.data[CTBR_M_STATE]) {
+    case CTBR_NONE:
+        return;
+    case CTBR_SET:
+        LCDSetPos(3, 11);
+        PrintClockTamerError(CTSetOutput(*(uint32_t*)(&active_widget_data.data[CTBR_M_FREQ])));
+        return;
+    case CTBR_SAVE:
+        LCDSetPos(3, 11);
+        PrintClockTamerError(CTStoreToEEPROM());
+        return;
+    }
+
+    if (active_widget_data.data[CTBR_M_STATE] < CTBR_OUT0) {
+        uint32_t orv = Order10(active_widget_data.data[CTBR_M_STATE] - CTBR_NONE);
+        uint8_t digit = (*(uint32_t*)(&active_widget_data.data[CTBR_M_FREQ]) / orv) % 10;
+        if (digit == 9) {
+            *(uint32_t*)(&active_widget_data.data[CTBR_M_FREQ]) -= 9*orv;
+        } else {
+            *(uint32_t*)(&active_widget_data.data[CTBR_M_FREQ]) += orv;
+        }
+    } else {
+        CTBR_UpdateOuts();
+    }
+    CTBR_UpdateUI();
+}
+
+
+void BACK_OnCTBRBack(void)
+{
+    switch (active_widget_data.data[CTBR_M_STATE]) {
+    case CTBR_NONE:
+        UI_WaitForOk_EventBack();
+        return;
+    case CTBR_SET:
+    case CTBR_SAVE:
+        active_widget_data.data[CTBR_M_STATE] = CTBR_NONE;
+        CTBR_UpdateUI();
+        return;
+    }
+
+    if (active_widget_data.data[CTBR_M_STATE] < CTBR_OUT0) {
+        uint32_t orv = Order10(active_widget_data.data[CTBR_M_STATE] - CTBR_NONE);
+        uint8_t digit = (*(uint32_t*)(&active_widget_data.data[CTBR_M_FREQ]) / orv) % 10;
+        if (digit == 0) {
+            *(uint32_t*)(&active_widget_data.data[CTBR_M_FREQ]) += 9*orv;
+        } else {
+            *(uint32_t*)(&active_widget_data.data[CTBR_M_FREQ]) -= orv;
+        }
+    } else {
+        CTBR_UpdateOuts();
+    }
+    CTBR_UpdateUI();
+}
+
+void OnClockTamerFreqset(void)
+{
+    active_widget.on_back = BACK_OnCTBRBack;
+    active_widget.on_ok   = OK_OnCTBROk;
+    active_widget.on_up   = UP_OnCTBRUp;
+    active_widget.on_down = DOWN_OnCTBRDown;
+    active_widget.on_spin_up   = 0;
+    active_widget.on_spin_down = 0;
+    active_widget.on_spin_push = 0;
+    active_widget.on_task = 0;
+
+    LCDClear();
+    LCDSetPos(0,0);
+    active_widget_data.data[CTBR_M_STATE] = CTBR_NONE;
+    uint8_t res = CTGetOutput((uint32_t*)&active_widget_data.data[CTBR_M_FREQ]);
+    if (res) {
+        LCDPuts_P(PSTR("Error: "));
+        PrintClockTamerError(res);
+        UI_WaitForOk_Enter();
+        return;
+    }
+    LCDPuts_P(PSTR("Out freq"));
+}
+
 static struct MainMenu sp_main_menu PROGMEM = {
-    .menu = { .items = 8, .def_item = 0, .on_back = 0 },
-    .it_prog_tst = { .Text = "Program&Test",   .on_event = OnProgramAndTest},
-    .it_program = { .Text = "Only Program",    .on_event = OnProgram},
-    .it_test    = { .Text = "SelfTest",   .on_event = OnTest},
-    .it_version = { .Text = "Info",       .on_event = OnInfo},
-    .it_freqtest= { .Text = "Freq Meter", .on_event = OnFrequencyMeter},
-    .it_interfaces = { .Text = "Iface test",  .on_event = OnTestInterfaces},
-    .it_ext_test = { .Text = "Ext Freq",      .on_event = OnExtFreq},
-    .it_all_test = { .Text = "All tests",     .on_event = OnAverallCTTest},
-//    .it_ctboard = { .Text = "CT Board",   .on_event = 0},
+    .menu = { .items = 2, .def_item = 0, .on_back = 0 },
+    .it_prog_tst = { .Text = "PrgTest", .on_event = OnProgramAndTest},
+    .it_program =  { .Text = "OnlProg", .on_event = OnProgram},
+    .it_test    =  { .Text = "SelfTest",     .on_event = OnTest},
+    .it_version =  { .Text = "Info",         .on_event = OnInfo},
+    .it_freqtest=  { .Text = "Freq Meter",   .on_event = OnFrequencyMeter},
+    .it_interfaces={ .Text = "Iface test",   .on_event = OnTestInterfaces},
+    .it_ext_test = { .Text = "Ext Freq",     .on_event = OnExtFreq},
+    .it_all_test = { .Text = "All tests",    .on_event = OnAverallCTTest},
+    .it_ctboard =  { .Text = "CT Board",     .on_event = OnClockTamerFreqset},
 };
 
 
