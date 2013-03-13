@@ -29,6 +29,7 @@ const char g_ctc_pinled[] PROGMEM = "PIN,LED,";
 
 const char g_ctc_inf_osc[] PROGMEM = "INF,,OSC";
 const char g_ctc_inf_out[] PROGMEM = "INF,,OUT";
+const char g_ctc_inf_ports[] PROGMEM = "INF,LMK,PRT";
 
 const char g_rep_ok[] PROGMEM = "OK";
 const char g_rep_syntax[] PROGMEM = "SYNTAX";
@@ -220,6 +221,18 @@ uint8_t CTGetOutput(uint32_t *pout)
     strcpy_PF(g_ctrecvbuffer, g_ctc_inf_out);
     if (ct_send_simple_cmd() == 0) {
         return parse_info_reply(g_ctc_inf_out, pout);
+    }
+    return CTR_IO_ERROR;
+}
+
+uint8_t CTGetPorts(uint8_t *pp)
+{
+    strcpy_PF(g_ctrecvbuffer, g_ctc_inf_ports);
+    if (ct_send_simple_cmd() == 0) {
+        uint32_t p;
+        uint8_t res = parse_info_reply(g_ctc_inf_ports, &p);
+        *pp = p;
+        return res;
     }
     return CTR_IO_ERROR;
 }

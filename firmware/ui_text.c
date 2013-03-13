@@ -1219,7 +1219,7 @@ static void CTBR_UpdateOuts(void)
 {
     uint8_t bit = active_widget_data.data[CTBR_M_STATE] - CTBR_OUT0;
     if (bit > 1) ++bit;
-    active_widget_data.data[CTBR_M_OUT] ^= bit;
+    active_widget_data.data[CTBR_M_OUT] ^= (1 << bit);
 
     LCDSetPos(3, 11);
     PrintClockTamerError(CTStoreToEEPROM());
@@ -1232,6 +1232,7 @@ void OK_OnCTBROk(void)
         return;
     case CTBR_SET:
         LCDSetPos(3, 11);
+        PrintClockTamerError(CTEnableOutputs(active_widget_data.data[CTBR_M_OUT]));
         PrintClockTamerError(CTSetOutput(*(uint32_t*)(&active_widget_data.data[CTBR_M_FREQ])));
         return;
     case CTBR_SAVE:
@@ -1298,16 +1299,22 @@ void OnClockTamerFreqset(void)
     active_widget_data.data[CTBR_M_STATE] = CTBR_NONE;
     uint8_t res = CTGetOutput((uint32_t*)&active_widget_data.data[CTBR_M_FREQ]);
     if (res) {
-        LCDPuts_P(PSTR("Error: "));
-        PrintClockTamerError(res);
-        UI_WaitForOk_Enter();
-        return;
+        goto _on_error;
     }
-    // Прочитать конфигурацию портов!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    // Обновление битов не работает!!
-    //LCDPuts_P(PSTR("Out freq"));
+
+    res = CTGetPorts(&active_widget_data.data[CTBR_M_OUT]);
+    if (res) {
+        goto _on_error;
+    }
 
     CTBR_UpdateUI();
+    return;
+
+_on_error:
+    LCDPuts_P(PSTR("Error: "));
+    PrintClockTamerError(res);
+    UI_WaitForOk_Enter();
+    return;
 }
 
 static struct MainMenu sp_main_menu PROGMEM = {
