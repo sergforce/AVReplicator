@@ -24,9 +24,9 @@ SPMW_SECTION uint8_t SPMWritePage(uint32_t addr, const uint8_t* data, uint16_t s
         return 2;
 
 #ifdef USE_DFU_API
-    void    (*BootloaderAPI_ErasePage)(uint32_t Address)               = BOOTLOADER_API_CALL(0);
-    void    (*BootloaderAPI_WritePage)(uint32_t Address)               = BOOTLOADER_API_CALL(1);
-    void    (*BootloaderAPI_FillWord)(uint32_t Address, uint16_t Word) = BOOTLOADER_API_CALL(2);
+    void    (*BootloaderAPI_ErasePage)(uint32_t Address)               = 0xFFF0; // BOOTLOADER_API_CALL(0);
+    void    (*BootloaderAPI_WritePage)(uint32_t Address)               = 0xFFF1; // BOOTLOADER_API_CALL(1);
+    void    (*BootloaderAPI_FillWord)(uint32_t Address, uint16_t Word) = 0xFFF2; // BOOTLOADER_API_CALL(2);
 #endif
     uint16_t bytes;
     addr += BOOTSPM_START_ADDR;

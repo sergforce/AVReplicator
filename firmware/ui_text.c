@@ -66,7 +66,7 @@ void UITask(void)
 /////////////////////////////////////////////////////////////////////////////////////
 // MENU Widget
 struct MenuItem {
-    char Text[12];
+    char Text[14];
     on_event_t on_event;
 };
 
@@ -873,7 +873,7 @@ uint8_t TestProcedureInterfaces(void)
 
 void OnTestInterfaces(void)
 {
-    OnTestInterfaces();
+    TestProcedureInterfaces();
     UI_WaitForOk_Enter();
 }
 
@@ -1150,12 +1150,12 @@ static void CTBR_UpdateUI(void)
 {
     LCDClear();
     LCDSetPos(0,1);
-    LCD_PrintU16(*(uint32_t*)(&active_widget_data.data[CTBR_M_FREQ]));
+    LCD_PrintFreq(*(uint32_t*)(&active_widget_data.data[CTBR_M_FREQ]));
 
     LCDSetPos(2,0);
     uint8_t mout = active_widget_data.data[CTBR_M_OUT];
     uint8_t pos;
-    for (pos = 0; pos != 0x80; pos<<=1) {
+    for (pos = 1; pos != 0x00; pos<<=1) {
         if (pos == 0x4) {
             LCDPutChar('x');
         } else {
@@ -1180,12 +1180,12 @@ static void CTBR_UpdateUI(void)
             } else if (dig > 2) {
                 dig ++;
             }
-            LCDSetPos(2, 13 - dig); LCDPutChar('^'); break;
+            LCDSetPos(1, 13 - dig); LCDPutChar('^'); break;
         } else {
             pos = active_widget_data.data[CTBR_M_STATE] - CTBR_OUT0;
             if (pos > 1) ++pos;
             pos <<= 1;
-            LCDSetPos(2, pos); LCDPutChar('_'); break;
+            LCDSetPos(1, pos); LCDPutChar('_'); break;
         }
     }
 }
@@ -1303,13 +1303,17 @@ void OnClockTamerFreqset(void)
         UI_WaitForOk_Enter();
         return;
     }
-    LCDPuts_P(PSTR("Out freq"));
+    // Прочитать конфигурацию портов!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // Обновление битов не работает!!
+    //LCDPuts_P(PSTR("Out freq"));
+
+    CTBR_UpdateUI();
 }
 
 static struct MainMenu sp_main_menu PROGMEM = {
-    .menu = { .items = 2, .def_item = 0, .on_back = 0 },
-    .it_prog_tst = { .Text = "PrgTest", .on_event = OnProgramAndTest},
-    .it_program =  { .Text = "OnlProg", .on_event = OnProgram},
+    .menu = { .items = 9, .def_item = 0, .on_back = 0 },
+    .it_prog_tst = { .Text = "Program&Test", .on_event = OnProgramAndTest},
+    .it_program =  { .Text = "Only Program", .on_event = OnProgram},
     .it_test    =  { .Text = "SelfTest",     .on_event = OnTest},
     .it_version =  { .Text = "Info",         .on_event = OnInfo},
     .it_freqtest=  { .Text = "Freq Meter",   .on_event = OnFrequencyMeter},

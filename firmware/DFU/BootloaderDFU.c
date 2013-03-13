@@ -148,6 +148,11 @@ void Application_Jump_Check(void)
  */
 int main(void)
 {
+    // Check whether to jump to user code
+    if (PINE & (1 << PE2)) {
+        ((void (*)(void))0x0000)();
+    }
+
 	/* Configure hardware required by the bootloader */
 	SetupHardware();
 
