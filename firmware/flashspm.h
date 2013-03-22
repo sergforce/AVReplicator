@@ -4,7 +4,7 @@
 #include <avr/pgmspace.h>
 
 // 44 kb of storage size
-#define BOOTSPM_START_ADDR    0x14000
+#define BOOTSPM_START_ADDR    0x10000
 #define BOOTSPM_SIZE          0x0B000
 
 #define USE_DFU_API

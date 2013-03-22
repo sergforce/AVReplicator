@@ -24,12 +24,17 @@ SPMW_SECTION uint8_t SPMWritePage(uint32_t addr, const uint8_t* data, uint16_t s
         return 2;
 
 #ifdef USE_DFU_API
-    void    (*BootloaderAPI_ErasePage)(uint32_t Address)               = 0xFFF0; // BOOTLOADER_API_CALL(0);
-    void    (*BootloaderAPI_WritePage)(uint32_t Address)               = 0xFFF1; // BOOTLOADER_API_CALL(1);
-    void    (*BootloaderAPI_FillWord)(uint32_t Address, uint16_t Word) = 0xFFF2; // BOOTLOADER_API_CALL(2);
+    void    (*BootloaderAPI_ErasePage)(const uint32_t Address)               = 0xFFF0; // BOOTLOADER_API_CALL(0);
+    void    (*BootloaderAPI_WritePage)(const uint32_t Address)               = 0xFFF1; // BOOTLOADER_API_CALL(1);
+    void    (*BootloaderAPI_FillWord)(const uint32_t Address, const uint16_t Word) = 0xFFF2; // BOOTLOADER_API_CALL(2);
 #endif
     uint16_t bytes;
     addr += BOOTSPM_START_ADDR;
+
+#ifdef USE_DFU_API
+    BootloaderAPI_ErasePage(addr);
+#endif
+
     for (bytes = 0; bytes < size; bytes += 2, data += 2) {
 #ifdef USE_DFU_API
         BootloaderAPI_FillWord(addr + bytes, *((uint16_t*)data));
@@ -39,7 +44,6 @@ SPMW_SECTION uint8_t SPMWritePage(uint32_t addr, const uint8_t* data, uint16_t s
     }
 
 #ifdef USE_DFU_API
-    BootloaderAPI_ErasePage(addr);
     BootloaderAPI_WritePage(addr);
 #else
     boot_page_erase(addr);
