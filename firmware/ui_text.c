@@ -884,7 +884,7 @@ void OnTestInterfaces(void)
 void PrintClockTamerError(uint8_t err)
 {
     switch (err) {
-    case CTR_OK:                LCDPuts_P(PSTR( "OK "));  break;
+    case CTR_OK:                LCDPuts_P(PSTR(" OK "));  break;
     case CTR_IO_ERROR:          LCDPuts_P(PSTR("E_io"));  break;
     case CTR_SYNTAX_ERROR:      LCDPuts_P(PSTR("Estx"));  break;
     case CTR_CMD_ERROR:         LCDPuts_P(PSTR("Ecmd"));  break;
@@ -1031,7 +1031,13 @@ uint8_t TestProcedureTestExtFreq(uint32_t freq)
         USB_USBTask();
     }
 
-    _delay_ms(2000);
+    uint16_t tmp;
+    for (tmp = 0; tmp < 20000; tmp++) {
+        _delay_us(90);
+
+        USB_ExtraHost();
+        USB_USBTask();
+    }
     return 0;
 
 measure_error:
@@ -1054,6 +1060,19 @@ uint32_t TestProcedure_freqs[] PROGMEM = {
     92000000
 };
 
+
+void DoPause(void)
+{
+    _delay_ms(100);
+
+    uint8_t i;
+    for (i = 0; i < 255; i++) {
+        USB_ExtraHost();
+        USB_USBTask();
+    }
+}
+
+
 uint8_t TestProcedureAllTest(void)
 {
     uint8_t i;
@@ -1064,6 +1083,7 @@ uint8_t TestProcedureAllTest(void)
         if (ret) {
             return ret;
         }
+        DoPause();
     }
     return 0;
 }
@@ -1084,9 +1104,13 @@ void OnAverallCTTest(void)
     res = TestProcedureInterfaces();
     if (res) goto testing_end;
 
+    DoPause();
+
     // Selftesting
     res = TestSelf();
     if (res) goto testing_end;
+
+    DoPause();
 
     // External testing
     res = TestProcedureAllTest();
@@ -1108,6 +1132,8 @@ void OnProgramAndTest(void)
 
     // Reset ClockTamer
     clocktamer_reset();
+
+    DoPause();
 
     OnAverallCTTest();
     return;
