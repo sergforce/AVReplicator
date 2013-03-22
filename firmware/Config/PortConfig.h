@@ -10,6 +10,7 @@
 
 	#ifdef __AVR_AT90USB1287__
 
+#if USE_EEPROM
 	    // EEPROM
 		#define EE_DDR   DDRB
 		#define EE_PORT  PORTB
@@ -17,6 +18,7 @@
         #define EE_CS1   PB6
         #define EE_CS2   PB4
         #define EE_CS3   PB7
+#endif
 
         // Clock Tamer CS for SPI
         #define CTS_DDR   DDRB
@@ -55,12 +57,12 @@
 		#define LCD_CTRL_RD    PE0
 		
 		// LED
-		#define LED_DDR   DDRF
-		#define LED_PORT  PORTF
-		#define LED_1     PF4
-		#define LED_2     PF5
-		#define LED_3     PF6
-		#define LED_4     PF7
+        #define LED_DDR   DDRB
+        #define LED_PORT  PORTB
+        #define LED_1     PB4
+        #define LED_2     PB5
+        #define LED_3     PB6
+        #define LED_4     PB7
 		
         // Control buttons
         #define CTRL_DDR    DDRD

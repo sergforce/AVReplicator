@@ -54,9 +54,11 @@ void SPIInit(void)
 {
     SPI_DDR |= (1 << SPI_MOSI) | (1 << SPI_SCK);
 
+#if USE_EEPROM
     //Memory CSs
     EE_DDR |= (1 << EE_CS0) | (1 << EE_CS1) | (1 << EE_CS2) | (1 << EE_CS3);
     EE_PORT |= (1 << EE_CS0) | (1 << EE_CS1) | (1 << EE_CS2) | (1 << EE_CS3);
+#endif
 
     // ClockTamer ISP
     CT_DDR |= (1 << CT_POWER) | (1 << CT_RESET);
