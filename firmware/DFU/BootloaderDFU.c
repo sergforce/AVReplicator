@@ -149,7 +149,10 @@ void Application_Jump_Check(void)
 int main(void)
 {
     // Check whether to jump to user code
+    PORTE |= (1 << PE2); // Pull up pin
+    _delay_us(30);
     if (PINE & (1 << PE2)) {
+        PORTE &= ~(1 << PE2);
         ((void (*)(void))0x0000)();
     }
 
@@ -157,7 +160,7 @@ int main(void)
 	SetupHardware();
 
 	/* Turn on first LED on the board to indicate that the bootloader has started */
-	LEDs_SetAllLEDs(LEDS_LED1);
+    LEDs_SetAllLEDs(LEDS_LED1 | LEDS_LED3);
 
 	/* Enable global interrupts so that the USB stack can function */
 	sei();
@@ -215,7 +218,7 @@ static void ResetHardware(void)
 /** ISR to periodically toggle the LEDs on the board to indicate that the bootloader is active. */
 ISR(TIMER1_OVF_vect, ISR_BLOCK)
 {
-	LEDs_ToggleLEDs(LEDS_LED1 | LEDS_LED2);
+    LEDs_ToggleLEDs(LEDS_LED1 | LEDS_LED2 | LEDS_LED3 | LEDS_LED4);
 }
 
 /** Event handler for the USB_ControlRequest event. This is used to catch and process control requests sent to
