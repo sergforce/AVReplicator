@@ -42,8 +42,22 @@
         #define SPI_MOSI  PB2
         #define SPI_SCK   PB1
 
-		
-		// Generic 4*20 LCD
+#ifdef GRAPH_LCD
+        #define LCD_GRA_DATA_PORT  PORTA
+        #define LCD_GRA_DATA_DDR   DDRA
+        #define LCD_GRA_DATA_PIN   PINA
+
+        #define LCD_GRA_CTRL_PORT  PORTE
+        #define LCD_GRA_CTRL_DDR   DDRE
+        #define LCD_GRA_CTRL_PIN   PINE
+
+        #define LCD_GRA_CTRL_EN    PE5
+        #define LCD_GRA_CTRL_RS    PE4
+        #define LCD_GRA_CTRL_RD    PE0
+        #define LCD_GRA_CTRL_CS0   PE1
+        #define LCD_GRA_CTRL_CS1   PE6
+#else
+        // Generic 4*16 LCD
 		#define LCD_DATA_PORT  PORTA
 		#define LCD_DATA_DDR   DDRA
 		#define LCD_DATA_PIN   PINA
@@ -55,15 +69,23 @@
 		#define LCD_CTRL_EN    PE5
 		#define LCD_CTRL_RS    PE4
 		#define LCD_CTRL_RD    PE0
-		
+#endif
 		// LED
+#ifdef OLD_LED
+        #define LED_DDR   DDRF
+        #define LED_PORT  PORTF
+        #define LED_1     PF4
+        #define LED_2     PF5
+        #define LED_3     PF6
+        #define LED_4     PF7
+#else
         #define LED_DDR   DDRB
         #define LED_PORT  PORTB
         #define LED_1     PB4
         #define LED_2     PB5
         #define LED_3     PB6
         #define LED_4     PB7
-		
+#endif
         // Control buttons
         #define CTRL_DDR    DDRD
         #define CTRL_PIN    PIND
