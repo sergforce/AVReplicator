@@ -220,11 +220,13 @@ void eemem_read_page(uint32_t addr, uint8_t *data, uint8_t count)
 
 int8_t avrisp_enter(void)
 {
-  int8_t rep, i;
+  int8_t rep, i, k;
   for (i = 0; i < 16; i++) {
     AVRSPI_RESET_DOWN(); AVRSPI_RESET_DOWN();
 
-    _delay_ms(50+30*i);
+    _delay_ms(50);
+    for (k = 0; k < i; ++k)
+         _delay_ms(30);
 
     transferSPI(AVRISP_ENTER_B0);
     transferSPI(AVRISP_ENTER_B1);
@@ -234,7 +236,9 @@ int8_t avrisp_enter(void)
     if (rep != AVRISP_ENTER_B1) {
       AVRSPI_RESET_UP(); AVRSPI_RESET_UP();
 
-      _delay_ms(1+10*i);
+      _delay_ms(1);
+      for (k = 0; k < i; ++k)
+           _delay_ms(10);
 
     } else {
       return 0;

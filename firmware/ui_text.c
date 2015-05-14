@@ -681,7 +681,7 @@ void OnTest(void)
 ////////////////////////////////////////////////////////////
 // Code for Interface testing
 ////////////////////////////////////////////////////////////
-const char sp_clocktamer[] PROGMEM = "ClockTamer";
+static const char sp_clocktamer[] PROGMEM = "ClockTamer";
 
 uint8_t TST_CheckVer(void)
 {
@@ -1048,7 +1048,7 @@ print_eror_and_exit:
     return 200;
 }
 
-uint32_t TestProcedure_freqs[] PROGMEM = {
+static const uint32_t TestProcedure_freqs[] PROGMEM = {
     10000000,
     19600000,
     20480000,
@@ -1343,7 +1343,7 @@ _on_error:
     return;
 }
 
-static struct MainMenu sp_main_menu PROGMEM = {
+static const struct MainMenu sp_main_menu PROGMEM = {
     .menu = { .items = 9, .def_item = 0, .on_back = 0 },
     .it_prog_tst = { .Text = "Program&Test", .on_event = OnProgramAndTest},
     .it_program =  { .Text = "Only Program", .on_event = OnProgram},
